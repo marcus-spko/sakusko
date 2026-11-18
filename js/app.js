@@ -106,14 +106,15 @@ function m1State() {
     else if (Number.isFinite(hrRest) && hrMeas <= hrRest) err.hrMeas = t().errMeasLow;
   }
   const shown = Object.fromEntries(Object.entries(err).filter(([k]) => m1.touched.has(k)));
-  const ok = m1.age !== '' && !err.age && m1.sex && m1.hrRest !== '' && !err.hrRest;
+  const ok = m1.age !== '' && !err.age && !!m1.sex;            // HRmax hanya butuh usia (+ jenis kelamin untuk Gulati)
+  const restOk = ok && m1.hrRest !== '' && !err.hrRest;          // zona Karvonen butuh denyut istirahat
   const measOk = ok && m1.hrMeas !== '' && !err.hrMeas;
-  return { age, hrRest, hrMeas, err: shown, allErr: err, ok, measOk };
+  return { age, hrRest, hrMeas, err: shown, allErr: err, ok, restOk, measOk };
 }
 
-function field(id, label, unit, value, { req = true, hint = '', def = null, err = '' } = {}) {
+function field(id, label, unit, value, { req = true, tag = '', hint = '', def = null, err = '' } = {}) {
   return `<div class="field ${err ? 'invalid' : ''}" id="f-${id}">
-    <div class="lbl-row"><label class="lbl" for="${id}">${esc(label)}</label>${req ? '<span class="req" aria-hidden="true">*</span>' : `<span class="opt">${esc(t().optional)}</span>`}${def ? ibtn(def, label) : ''}</div>
+    <div class="lbl-row"><label class="lbl" for="${id}">${esc(label)}</label>${req ? '<span class="req" aria-hidden="true">*</span>' : `<span class="opt">${esc(tag || t().optional)}</span>`}${def ? ibtn(def, label) : ''}</div>
     <div class="inbox"><input id="${id}" name="${id}" type="text" inputmode="numeric" autocomplete="off" enterkeyhint="next" value="${esc(value)}" ${req ? 'aria-required="true"' : ''} ${err ? `aria-invalid="true" aria-describedby="e-${id}"` : ''}><span class="unit">${esc(unit)}</span></div>
     <div id="m-${id}" data-hint="${esc(hint)}">${msgHtml(id, err, hint)}</div></div>`;
 }
@@ -155,7 +156,7 @@ function m1Fields(s) {
       <div class="seg" role="group" aria-labelledby="sexLbl">
         <button type="button" data-sex="M" aria-pressed="${m1.sex === 'M'}">${esc(t().male)}</button>
         <button type="button" data-sex="F" aria-pressed="${m1.sex === 'F'}">${esc(t().female)}</button></div></div>
-    ${field('hrRest', t().hrRest, t().bpm, m1.hrRest, { hint: t().hrRestHint, def: 'hrrest', err: s.err.hrRest })}
+    ${field('hrRest', t().hrRest, t().bpm, m1.hrRest, { req: false, tag: t().forZones, hint: t().hrRestHint, def: 'hrrest', err: s.err.hrRest })}
     ${field('hrMeas', t().hrMeas, t().bpm, m1.hrMeas, { req: false, hint: t().hrMeasHint, def: 'hrmeas', err: s.err.hrMeas })}</div>`;
 }
 
@@ -179,8 +180,8 @@ function m1Out(s) {
   m1._measWasOk = s.measOk;
   const baseVal = m1.base === 'measured' ? s.hrMeas : Math.round(vals[m1.base]);
   const baseName = m1.base === 'measured' ? t().measuredName : HRMAX[m1.base].name;
-  const zones = acsmZones(baseVal, s.hrRest);
-  const hrr = baseVal - s.hrRest;
+  const zones = s.restOk ? acsmZones(baseVal, s.hrRest) : [];
+  const hrr = s.restOk ? baseVal - s.hrRest : NaN;
 
   const rows = HRMAX_ORDER.map(k => {
     const on = hrmaxApplies(k, m1.sex);
@@ -216,10 +217,16 @@ function m1Out(s) {
   const d = `${String(today.getDate()).padStart(2, '0')}-${String(today.getMonth() + 1).padStart(2, '0')}-${today.getFullYear()}`;
   const zt = zones.map(z => `${z.bpmLo}–${z.bpmHi}`);
   const baseShort = m1.base === 'measured' ? t().measuredName : M1_FORMULAS[m1.base].short;
-  const lines = [t().copyHeader(d), t().copyInput(m1.sex, num(s.age), num(s.hrRest)),
-    m1.base === 'measured' ? t().copyRangeOnly(lo, hi) : t().copyRange(lo, hi, baseName, baseVal)];
-  if (m1.base === 'measured') lines.push(t().copyMeasured(s.hrMeas));
-  lines.push(t().copyZones(zt), t().copySrc(baseShort));
+  const lines = [t().copyHeader(d), t().copyInput(m1.sex, num(s.age), s.restOk ? num(s.hrRest) : '')];
+  if (s.restOk) {
+    lines.push(m1.base === 'measured' ? t().copyRangeOnly(lo, hi) : t().copyRange(lo, hi, baseName, baseVal));
+    if (m1.base === 'measured') lines.push(t().copyMeasured(s.hrMeas));
+    lines.push(t().copyZones(zt), t().copySrc(baseShort));
+  } else {
+    lines.push(t().copyRangeNoZone(lo, hi));
+    if (s.measOk) lines.push(t().copyMeasuredPlain(s.hrMeas));
+    lines.push(t().copySrcNoZone(keys.map(k => M1_FORMULAS[k].short).filter(x => !x.startsWith('Fox')).join('; ')));
+  }
   m1._copy = lines.join('\n');
 
   return `<section class="card" aria-labelledby="h-est">
@@ -232,10 +239,10 @@ function m1Out(s) {
     <section class="card" aria-labelledby="h-z" style="margin-top:14px">
       <div class="lbl-row"><h2 class="h2" id="h-z">${esc(t().zones)}</h2>${ibtn('karvonen', 'Karvonen')}</div>
       <label class="field"><span class="lbl">${esc(t().basis)}</span><select class="sel" id="base">${opts}</select></label>
-      <span class="hint">${esc(t().karvLine(num(baseVal), num(s.hrRest), num(hrr)))}</span>
+      ${s.restOk ? `<span class="hint">${esc(t().karvLine(num(baseVal), num(s.hrRest), num(hrr)))}</span>
       <button type="button" class="linkbtn" data-karv aria-expanded="${m1.karvOpen}" aria-controls="fx-karv">${esc(m1.karvOpen ? t().hideKarv : t().showKarv)}${svg('chev', '#9A3412', 16)}</button>${karv}
       <div style="display:flex;flex-direction:column;gap:8px">${zr}</div>
-      <span class="hint">${esc(t().zoneNote)}</span>
+      <span class="hint">${esc(t().zoneNote)}</span>` : `<div class="note">${svg('info', '#9A3412')}<span>${esc(t().needRest)}</span></div>`}
     </section>
     <section class="card" aria-labelledby="h-cp" style="margin-top:14px">
       <h2 class="h2" id="h-cp">${esc(t().copyPreview)}</h2>
