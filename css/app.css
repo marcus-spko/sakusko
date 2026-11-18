@@ -108,6 +108,12 @@ select.sel { appearance: none; -webkit-appearance: none; border: 1.5px solid var
 .foot { display: flex; flex-direction: column; gap: 4px; padding: 0 4px; font-size: 11px; color: var(--muted); line-height: 1.5; }
 .empty { font-size: 13px; color: var(--muted); }
 
+/* Sesi */
+.sess-sum { font-size: 16px; font-weight: 800; }
+.btn-sec { border: 1.5px solid var(--line); border-radius: 14px; min-height: 48px; background: #fff; color: var(--label); font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; width: 100%; }
+.btn-sec.armed { border-color: var(--danger); color: var(--danger); background: var(--danger-bg); }
+a.linkbtn { min-height: 40px; }
+
 /* Glossary & about */
 .gl { display: flex; flex-direction: column; gap: 2px; padding: 12px 0; border-top: 1px solid var(--line); }
 .gl:first-of-type { border-top: 0; }

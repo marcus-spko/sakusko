@@ -45,4 +45,6 @@ export const LIMITS = {
   age: [18, 100],
   hrRest: [30, 120],
   hrMeasured: [100, 230],
+  weight: [20, 300],
+  height: [100, 250],
 };
