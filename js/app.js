@@ -3,10 +3,12 @@ import { HRMAX, HRMAX_ORDER, hrmax, hrmaxApplies, acsmZones, karvonen, LIMITS, r
   rmrTenHaaf, rmrTenHaafFfm, rmrMifflin, rmrHarrisRev, rmrCunningham, energyAvail, CHO, PROTEIN, FAT_PCT, PAL_BANDS,
   bmi, bmiCat, centralObese, whtr, whr, whrHigh,
   siri, jp3Men, jpw3Women, dwRow, dwDensity, hastutiS4, hastutiAbd, ffmFrom, targetWeight, endomorphy, mesomorphy, hwr, ectomorphy, somatoXY,
-  sweatLoss, sweatRate, bmChangePct } from './formulas.js';
+  sweatLoss, sweatRate, bmChangePct, lsiDist, lsiTime, hqRatio } from './formulas.js';
 import { TESTS, REF, RM_INFO } from './tests.js';
 import { M48_REF, M4_FIELDS, M8_FIELDS, M48_T } from './m48.js';
 import { M510_REF, SITES, EQS, EQ_ORDER, SOMATO_SITES, M10_FIELDS, M510_T } from './m510.js';
+import { NYPR, nyprSvg, NYPR_REF } from './nypr.js';
+import { M79_REF, SUPPS, LSI_ROWS, HQ_FIELDS, M79_T } from './m79.js';
 import { MODULES, T, M1_FORMULAS, KARVONEN_REF, GLOSSARY, ABOUT } from './i18n.js';
 import { S, load, save, clear, expireIfDue, expiresAt, isEmpty } from './session.js';
 import { startTitleCase } from './titlecase.js';
@@ -774,6 +776,150 @@ function refreshM510(mod, keepInputs = false) {
   document.getElementById('modout').innerHTML = mod === 'm5' ? m5Out(s) : m10Out(s);
 }
 
+
+// ---------- Modul 6 (Postur NYPR), 7 (suplemen), 9 (LSI & H:Q) ----------
+const T7 = () => ({ ...t(), ...M79_T[lang] });
+const refsOf = (OBJ, keys) => keys.map(k => `<span class="r">${esc(OBJ[k].ref)}${OBJ[k].doi ? ` <a href="https://doi.org/${OBJ[k].doi}" target="_blank" rel="noopener">doi:${OBJ[k].doi}</a>` : ''}</span>`).join('');
+const srcBox = (id, OBJ, keys, f = []) => `<div class="fbox" id="mfx-${id}">${f.length ? `<span class="k">${esc(t().fFormula)}</span>${f.map(x => `<span class="f" style="font-size:14px">${esc(x)}</span>`).join('')}` : ''}<span class="k">${esc(t().fSource)}</span>${refsOf(OBJ, keys)}<span class="hint">${esc(t().doiNote)}</span></div>`;
+function modHeader(mod) { const i = MODULES.findIndex(m => m.id === mod), M = MODULES[i]; return { M, head: pageHeader(t().moduleLabel(String(i + 1).padStart(2, '0'), M.cat[lang]), M.title[lang], T7()[`${mod}Sub`]) }; }
+function baseCopy(mod, lines, src) {
+  if (!lines.length) return null;
+  const body = [...lines, t().srcLine(src)], M = MODULES.find(m => m.id === mod), bs = baseSummary();
+  return { text: [t().copyHeaderMod(Number(mod.slice(1)), M.title[lang], todayStr()), ...(bs ? [`${t().baseLabel}: ${bs}`] : []), ...body].join('\n'), body };
+}
+
+// ----- Modul 6: NYPR -----
+function nyprState() { const sc = S.m6.s, rated = NYPR.filter(x => sc[x.k]), sum = rated.reduce((a, x) => a + sc[x.k], 0); return { rated, sum, done: rated.length === NYPR.length }; }
+function nyprCards() {
+  const T = T7(), view = S.m6.view;
+  return NYPR.map((seg, idx) => ({ seg, no: idx + 1 })).filter(({ seg }) => seg.view === view).map(({ seg, no }) => `<section class="card" aria-labelledby="ny-${seg.k}" style="margin-top:14px">
+    <div class="row-between"><h2 class="h2" id="ny-${seg.k}">${no}. ${esc(seg.name[lang])}</h2><span class="muted">${esc(seg.view === 'back' ? T.viewBackLbl : T.viewSideLbl)}</span></div>
+    <div class="nylist" role="group" aria-labelledby="ny-${seg.k}">${seg.opts.map(([score, txt], i) => {
+      const on = S.m6.s[seg.k] === score;
+      return `<button type="button" class="nyopt" data-ny="${seg.k}" data-v="${score}" aria-pressed="${on}"><span class="nyimg">${nyprSvg(seg, i, lang)}</span>
+        <span class="nytxt"><span class="nyhead"><b>${score}</b><span class="nylbl">${esc(T.scoreLbl[score])}</span>${on ? `<span class="nypick">${esc(T.picked)}</span>` : ''}</span><span>${esc(txt[lang])}</span></span></button>`; }).join('')}</div></section>`).join('');
+}
+function nyprResult() {
+  const T = T7(), st = nyprState();
+  const dev = NYPR.filter(x => S.m6.s[x.k] && S.m6.s[x.k] < 5).map(x => `${x.name[lang]} (${S.m6.s[x.k]})`);
+  const inner = !st.done ? `${emptyP(T.nyprIncomplete)}${st.rated.length ? `<span class="hint">${esc(T.progress(st.rated.length, st.sum))}</span>` : ''}`
+    : `<div class="big"><b>${st.sum}</b><span>${esc(T.of65)}</span></div><span style="font-size:14px;line-height:1.5"><b>${esc(T.devList)}:</b> ${esc(dev.length ? dev.join(', ') : T.none)}</span>`;
+  return card('h-nyr', T.total, null, `${inner}<span class="hint">${esc(T.nyprNote)}</span>${fxBtn('ny', true)}${UI.mfx.has('ny') ? srcBox('ny', NYPR_REF, ['nysed', 'mcroberts']) : ''}`) + copyCard(m6Copy());
+}
+function m6Copy() {
+  const st = nyprState(), T = T7(); if (!st.rated.length) return null;
+  const dev = NYPR.filter(x => S.m6.s[x.k] && S.m6.s[x.k] < 5).map(x => `${x.name[lang]} (${S.m6.s[x.k]})`);
+  const l = st.done ? `NYPR: ${st.sum}/65; ${T.devList.toLowerCase()}: ${dev.length ? dev.join(', ') : T.none.toLowerCase()}` : `NYPR: ${T.progress(st.rated.length, st.sum)}`;
+  return baseCopy('m6', [l, lang === 'id' ? 'Tanpa label kategori (belum tervalidasi)' : 'No category label (not validated)'], 'NYSED 1958; McRoberts 2013');
+}
+function renderM6() {
+  const T = T7(), { head } = modHeader('m6'), st = nyprState();
+  app.innerHTML = `${head}<main class="main">
+    <div class="note">${svg('body', '#9A3412')}<span><b>${esc(T.prepHead)}.</b> ${esc(T.m6Prep)}</span></div>
+    <div class="seg" role="group" aria-label="${esc(T.prepHead)}">${[['back', `${T.viewBack} (6)`], ['side', `${T.viewSide} (7)`]].map(([k, l]) => `<button type="button" data-nyview="${k}" aria-pressed="${S.m6.view === k}">${esc(l)}</button>`).join('')}</div>
+    <div class="row-between" style="font-size:12px;font-weight:600;color:var(--muted);flex-wrap:wrap;gap:8px">
+      <span style="display:flex;align-items:center;gap:6px"><svg aria-hidden="true" width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" stroke="#9A3412" stroke-width="1.5" stroke-dasharray="3 3"/></svg>${esc(T.legendPlumb)}</span>
+      <span style="display:flex;align-items:center;gap:6px"><svg aria-hidden="true" width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" stroke="#E8590C" stroke-width="2"/></svg>${esc(T.legendDev)}</span></div>
+    <div class="sess-bar" id="nyProg">${esc(T.progress(st.rated.length, st.sum))}</div>
+    <div id="nycards">${nyprCards()}</div>
+    <div id="modout">${nyprResult()}</div>
+    <div class="foot"><span>${esc(T.nyprCredit)}</span><span>${esc(T.m6Sources)}</span><span>${esc(t().meta2)}</span></div>
+  </main>${nav('calc')}`;
+}
+function refreshM6(cardsToo = true) {
+  const T = T7(), st = nyprState();
+  if (cardsToo) document.getElementById('nycards').innerHTML = nyprCards();
+  document.getElementById('nyProg').textContent = T.progress(st.rated.length, st.sum);
+  document.getElementById('modout').innerHTML = nyprResult();
+}
+
+// ----- Modul 7: suplemen -----
+const gUnit = u => (lang === 'id' ? u : u.replace('hari', 'day'));
+const fmtDose = (vals, unit) => vals.map(v => num(v, Math.abs(v - Math.round(v)) < 0.05 ? 0 : 1)).join('–') + ' ' + gUnit(unit);
+function m7Out() {
+  const T = T7(), w = parse(S.base.weight), ok = S.base.weight !== '' && !m1State().allErr.weight && Number.isFinite(w);
+  const warn = `<div class="note">${svg('alert', '#9A3412')}<span>${esc(T.m7Warn)}</span></div>`;
+  if (!ok) return `${warn}${card('h-sup', MODULES.find(m => m.id === 'm7').title[lang], null, emptyP(T.m7Need))}`;
+  const cards = SUPPS.map(sp => card(`h-${sp.k}`, sp.name[lang], null, `${sp.rows(w).map(([lbl, vals, unit]) => kvRow(lbl[lang], fmtDose(vals, unit))).join('')}
+      <span class="hint"><b>${esc(T.timingLbl)}:</b> ${esc(sp.timing[lang])}</span><span class="hint">${esc(sp.note(w)[lang])}</span>
+      ${fxBtn(`s-${sp.k}`, true)}${UI.mfx.has(`s-${sp.k}`) ? srcBox(`s-${sp.k}`, M79_REF, sp.refs) : ''}`)).join('');
+  return `${warn}${cards}${copyCard(m7Copy())}`;
+}
+function m7Copy() {
+  const w = parse(S.base.weight); if (S.base.weight === '' || m1State().allErr.weight || !Number.isFinite(w)) return null;
+  const lines = SUPPS.map(sp => `${sp.name[lang]}: ${sp.rows(w).map(([lbl, vals, unit]) => `${lbl[lang]} = ${fmtDose(vals, unit)}`).join('; ')}`);
+  lines.push(lang === 'id' ? 'Catatan: risiko kontaminasi anti-doping; uji saat latihan dulu' : 'Note: anti-doping contamination risk; trial in training first');
+  return baseCopy('m7', lines, 'IOC 2018; ISSN 2017/2021');
+}
+function renderM7() {
+  const T = T7(), { head } = modHeader('m7'), s = m1State();
+  app.innerHTML = `${head}<main class="main">
+    <section class="card" aria-labelledby="h-in"><div class="row-between"><h2 class="h2" id="h-in">${esc(t().dataIn)}</h2><span class="muted"><span class="req">*</span> ${esc(t().required)}</span></div>
+      <div id="fields">${field('weight', t().weight, 'kg', S.base.weight, { err: UI.touched.has('weight') ? s.allErr.weight : '', dec: true })}</div>
+      <div class="privacy">${svg('lock', '#5C4F45', 16)}<span>${esc(t().storedNote)}</span></div></section>
+    <div id="modout">${m7Out()}</div>
+    <div class="foot"><span>${esc(T.m7Sources)}</span><span>${esc(t().meta2)}</span></div>
+  </main>${nav('calc')}`;
+}
+
+// ----- Modul 9: LSI & H:Q -----
+const lsiId = (k, side) => fid('m9', 'x', `${k}_${side}`);
+function m9State() {
+  const v = {}, err = {};
+  const chk = (key, lim) => { const raw = S.m9.v[`x.${key}`] ?? '', x = parse(raw), id = fid('m9', 'x', key); v[key] = NaN; if (raw !== '') { if (!(x >= lim[0] && x <= lim[1])) err[id] = t().errRange(...lim); else v[key] = x; } };
+  LSI_ROWS.forEach(r => { chk(`${r.k}_i`, r.lim); chk(`${r.k}_u`, r.lim); });
+  HQ_FIELDS.forEach(f => chk(f.k, f.lim));
+  const shown = Object.fromEntries(Object.entries(err).filter(([k]) => UI.touched.has(k)));
+  const rows = LSI_ROWS.map(r => { const a = v[`${r.k}_i`], b = v[`${r.k}_u`]; return Number.isFinite(a) && Number.isFinite(b) ? { ...r, inj: a, hea: b, lsi: r.type === 'time' ? lsiTime(a, b) : lsiDist(a, b) } : null; }).filter(Boolean);
+  const hq = Number.isFinite(v.hcon) && Number.isFinite(v.qcon) ? { conv: hqRatio(v.hcon, v.qcon), func: Number.isFinite(v.hecc) ? hqRatio(v.hecc, v.qcon) : undefined } : null;
+  return { v, err: shown, rows, hq };
+}
+function m9Fields(s) {
+  const T = T7();
+  const pair = r => { const u = typeof r.unit === 'string' ? r.unit : r.unit[lang];
+    return `<div class="lsirow"><span class="lbl">${esc(r.name[lang])}</span><div class="lsipair">
+      ${field(lsiId(r.k, 'i'), T.injured, u, S.m9.v[`x.${r.k}_i`] ?? '', { req: false, err: s.err[lsiId(r.k, 'i')], dec: true, key: `x.${r.k}_i`, mod: 'm9' })}
+      ${field(lsiId(r.k, 'u'), T.healthy, u, S.m9.v[`x.${r.k}_u`] ?? '', { req: false, err: s.err[lsiId(r.k, 'u')], dec: true, key: `x.${r.k}_u`, mod: 'm9' })}</div></div>`; };
+  const hq = HQ_FIELDS.map(f => { const id = fid('m9', 'x', f.k); return field(id, f.label[lang], f.unit, S.m9.v[`x.${f.k}`] ?? '', { req: f.req, tag: f.tag ? f.tag[lang] : '', err: s.err[id], dec: true, key: `x.${f.k}`, mod: 'm9' }); }).join('');
+  return `<h3 class="h2" style="font-size:15px">${esc(T.lsiHead)}</h3><span class="hint">${esc(T.lsiHint)}</span>
+    <div style="display:flex;flex-direction:column;gap:14px">${LSI_ROWS.map(pair).join('')}</div>
+    <h3 class="h2" style="font-size:15px;margin-top:10px">${esc(T.hqHead)}</h3><span class="hint">${esc(T.hqLimb)}</span>
+    <div style="display:flex;flex-direction:column;gap:14px">${hq}</div>`;
+}
+function m9Out(s) {
+  const T = T7();
+  const lsiInner = !s.rows.length ? emptyP(T.lsiNone) : `${s.rows.map(r => kvRow(r.name[lang], `${num(r.lsi, 1)}%`) + `<span class="hint">${r.lsi >= 90 ? esc(T.lsiOk) : `<b style="color:var(--label)">${esc(T.lsiBelow)}</b>`}</span>`).join('')}
+    <span class="sess-sum">${esc(T.lsiCount(s.rows.filter(r => r.lsi >= 90).length, s.rows.length))}</span>
+    <div class="note">${svg('info', '#9A3412')}<span>${esc(T.lsiNote)}</span></div><span class="hint">${esc(T.lsiCaveat)}</span>
+    ${fxBtn('lsi')}${UI.mfx.has('lsi') ? srcBox('lsi', M79_REF, ['noyes', 'panther', 'wellsandt'], lang === 'id' ? ['LSI (jarak/torsi) = cedera / sehat × 100', 'LSI (tes berwaktu) = waktu sehat / waktu cedera × 100'] : ['LSI (distance/torque) = injured / uninjured × 100', 'LSI (timed test) = uninjured time / injured time × 100']) : ''}`;
+  const hqInner = !s.hq ? emptyP(T.hqNeed) : `${kvRow(T.hqConv, num(s.hq.conv, 2))}${s.hq.func !== undefined ? kvRow(T.hqFunc, num(s.hq.func, 2)) : ''}
+    <span class="hint">${esc(T.hqNote)}</span>
+    ${fxBtn('hq')}${UI.mfx.has('hq') ? srcBox('hq', M79_REF, ['aagaard', 'ruas'], lang === 'id' ? ['H:Q konvensional = hamstring konsentrik / kuadriseps konsentrik', 'H:Q fungsional = hamstring eksentrik / kuadriseps konsentrik'] : ['Conventional H:Q = concentric hamstring / concentric quadriceps', 'Functional H:Q = eccentric hamstring / concentric quadriceps']) : ''}`;
+  return `${card('h-lsi', T.lsiHead, 'lsi', lsiInner, false)}${card('h-hq', T.hqHead, null, hqInner)}${copyCard(m9Copy())}`;
+}
+function m9Copy() {
+  const s = m9State(), T = T7(), lines = [];
+  s.rows.forEach(r => { const u = typeof r.unit === 'string' ? r.unit : r.unit[lang]; lines.push(`LSI ${r.name[lang]}: ${num(r.lsi, 1)}% (${num(r.inj, r.type === 'time' ? 2 : 0)} vs ${num(r.hea, r.type === 'time' ? 2 : 0)} ${u})${r.lsi < 90 ? ` — ${T.lsiBelow}` : ''}`); });
+  if (s.hq) lines.push(`${T.hqConv} ${num(s.hq.conv, 2)}${s.hq.func !== undefined ? `; ${T.hqFunc} ${num(s.hq.func, 2)}` : ''}`);
+  return baseCopy('m9', lines, [s.rows.length ? 'Noyes 1991; Panther 2020' : '', s.hq ? 'Aagaard 1998' : ''].filter(Boolean).join('; '));
+}
+function renderM9() {
+  const T = T7(), { head } = modHeader('m9'), s = m9State();
+  app.innerHTML = `${head}<main class="main">
+    <section class="card" aria-labelledby="h-in"><h2 class="h2" id="h-in">${esc(t().dataIn)}</h2>
+      <div id="fields" style="display:flex;flex-direction:column;gap:10px">${m9Fields(s)}</div>
+      <div class="privacy">${svg('lock', '#5C4F45', 16)}<span>${esc(t().storedNote)}</span></div></section>
+    <div id="modout">${m9Out(s)}</div>
+    <div class="foot"><span>${esc(T.m9Sources)}</span><span>${esc(t().meta2)}</span></div>
+  </main>${nav('calc')}`;
+}
+function refreshM79(mod, keepInputs = false) {
+  if (mod === 'm7') { const s = m1State(); if (keepInputs) updateFieldMsgs({ err: UI.touched.has('weight') && s.allErr.weight ? { weight: s.allErr.weight } : {} }); else return renderM7(); document.getElementById('modout').innerHTML = m7Out(); return; }
+  const s = m9State();
+  if (keepInputs) updateFieldMsgs(s); else document.getElementById('fields').innerHTML = m9Fields(s);
+  document.getElementById('modout').innerHTML = m9Out(s);
+}
+
 // ---------- Modul 2 & 3: tes berbasis data (lihat tests.js) ----------
 const MODNUM = { m2: '02', m3: '03' };
 const DEFKEY = { ymca: 'steptest', harvard: 'fi', yoyo: 'yoyo', ift: 'vift', smwt: 'smwt', grip: 'grip', sts: 'sts' };
@@ -977,9 +1123,9 @@ function refreshCurrent(keepInputs = false) {
   const h = location.hash;
   if (h === '#/data') { if (keepInputs) updateFieldMsgs(m1State()); else document.getElementById('fields').innerHTML = baseFields(m1State()); }
   else if (/^#\/m\/m1$/.test(h)) refreshM1(keepInputs);
-  else { const mm = h.match(/^#\/m\/(m2|m3)$/); if (mm) refreshMod(mm[1], keepInputs); const mc = h.match(/^#\/m\/(m4|m8)$/); if (mc) refreshCustom(mc[1], keepInputs); const md = h.match(/^#\/m\/(m5|m10)$/); if (md) refreshM510(md[1], keepInputs); }
+  else { const mm = h.match(/^#\/m\/(m2|m3)$/); if (mm) refreshMod(mm[1], keepInputs); const mc = h.match(/^#\/m\/(m4|m8)$/); if (mc) refreshCustom(mc[1], keepInputs); const md = h.match(/^#\/m\/(m5|m10)$/); if (md) refreshM510(md[1], keepInputs); const me = h.match(/^#\/m\/(m7|m9)$/); if (me) refreshM79(me[1], keepInputs); if (h === '#/m/m6') refreshM6(); }
 }
-function currentState() { const mm = location.hash.match(/^#\/m\/(m2|m3)$/); if (mm) return modState(mm[1]); const mc = location.hash.match(/^#\/m\/(m4|m8)$/); if (mc) return customState(mc[1]); if (location.hash === '#/m/m5') return m5State(); if (location.hash === '#/m/m10') return m10State(); return m1State(); }
+function currentState() { const mm = location.hash.match(/^#\/m\/(m2|m3)$/); if (mm) return modState(mm[1]); const mc = location.hash.match(/^#\/m\/(m4|m8)$/); if (mc) return customState(mc[1]); if (location.hash === '#/m/m5') return m5State(); if (location.hash === '#/m/m10') return m10State(); if (location.hash === '#/m/m9') return m9State(); return m1State(); }
 
 // ---------- Sesi: data dasar & ringkasan ----------
 const hhmm = ts => { const d = new Date(ts); return `${String(d.getHours()).padStart(2, '0')}.${String(d.getMinutes()).padStart(2, '0')}`; };
@@ -1035,8 +1181,8 @@ function moduleCopies() {
   if (sk) out.push({ id: 'skr', title: t().skrTitle, text: sk.text, body: sk.body });
   m1Out(m1State());
   if (UI.copy) out.push({ id: 'm1', title: MODULES[0].title[lang], text: UI.copy, body: UI.copy.split('\n').slice(1) });
-  for (const mod of ['m2', 'm3', 'm4', 'm5', 'm8', 'm10']) {
-    const c = mod === 'm4' || mod === 'm8' ? customCopy(mod) : mod === 'm5' ? m5Copy() : mod === 'm10' ? m10Copy() : modCopy(mod);
+  for (const mod of ['m2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8', 'm9', 'm10']) {
+    const c = mod === 'm4' || mod === 'm8' ? customCopy(mod) : mod === 'm5' ? m5Copy() : mod === 'm10' ? m10Copy() : mod === 'm6' ? m6Copy() : mod === 'm7' ? m7Copy() : mod === 'm9' ? m9Copy() : modCopy(mod);
     if (c) out.push({ id: mod, title: MODULES.find(m => m.id === mod).title[lang], text: c.text, body: c.body });
   }
   return out;
@@ -1091,7 +1237,7 @@ function route() {
   if (h === '#/m/skr') renderSkr();
   else if (mm) {
     const i = MODULES.findIndex(m => m.id === mm[1]);
-    if (i === 0) renderM1(); else if (mm[1] === 'm2' || mm[1] === 'm3') renderMod(mm[1]); else if (mm[1] === 'm4' || mm[1] === 'm8') renderCustom(mm[1]); else if (mm[1] === 'm5' || mm[1] === 'm10') renderM510(mm[1]); else if (i > 0) renderWip(MODULES[i], i + 1); else renderHome();
+    if (i === 0) renderM1(); else if (mm[1] === 'm2' || mm[1] === 'm3') renderMod(mm[1]); else if (mm[1] === 'm4' || mm[1] === 'm8') renderCustom(mm[1]); else if (mm[1] === 'm5' || mm[1] === 'm10') renderM510(mm[1]); else if (mm[1] === 'm6') renderM6(); else if (mm[1] === 'm7') renderM7(); else if (mm[1] === 'm9') renderM9(); else if (i > 0) renderWip(MODULES[i], i + 1); else renderHome();
   } else if (h === '#/data') renderBase();
   else if (h === '#/ringkasan') renderSummary();
   else if (h === '#/glosarium') renderGloss();
@@ -1152,6 +1298,10 @@ app.addEventListener('click', async e => {
   if (b.dataset.aha) { const k = b.dataset.aha; if (S.skr.aha[k] === b.dataset.v) delete S.skr.aha[k]; else S.skr.aha[k] = b.dataset.v; save(); UI.clearArmed = false; refreshSkr(`[data-aha="${k}"][data-v="${b.dataset.v}"]`); return; }
   if ('aharest' in b.dataset) { AHA14.forEach(x => { if (!S.skr.aha[x.k]) S.skr.aha[x.k] = 'n'; }); save(); refreshSkr('#h-ah'); return; }
   if (b.dataset.parq) { S.skr.parq = S.skr.parq === b.dataset.parq ? '' : b.dataset.parq; save(); refreshSkr(`[data-parq="${b.dataset.parq}"]`); return; }
+  if (b.dataset.ny) { const k = b.dataset.ny, v = Number(b.dataset.v); if (S.m6.s[k] === v) delete S.m6.s[k]; else S.m6.s[k] = v; save(); UI.clearArmed = false; refreshM6(); document.querySelector(`[data-ny="${k}"][data-v="${v}"]`)?.focus(); return; }
+  if (b.dataset.nyview) { S.m6.view = b.dataset.nyview; save(); renderM6(); document.querySelector(`[data-nyview="${b.dataset.nyview}"]`)?.focus(); return; }
+  if (b.dataset.mfx && location.hash === '#/m/m6') { const k = b.dataset.mfx; UI.mfx.has(k) ? UI.mfx.delete(k) : UI.mfx.add(k); refreshM6(false); document.querySelector(`[data-mfx="${k}"]`)?.focus(); return; }
+  if (b.dataset.mfx && /^#\/m\/(m7|m9)$/.test(location.hash)) { const k = b.dataset.mfx, mod = location.hash.slice(4); UI.mfx.has(k) ? UI.mfx.delete(k) : UI.mfx.add(k); refreshM79(mod); document.querySelector(`[data-mfx="${k}"]`)?.focus(); return; }
   if (b.dataset.m5tab) { S.m5.tab = b.dataset.m5tab; save(); renderM510('m5'); document.querySelector(`[data-m5tab="${b.dataset.m5tab}"]`)?.focus(); return; }
   if ('useffm' in b.dataset) { const r = m5FatCalc(m5State()); if (r) { S.m4.v['x.ffm'] = String(Math.round(r.ffm * 10) / 10).replace('.', lang === 'id' ? ',' : '.'); save(); UI.ffmCopied = true; refreshM510('m5'); document.querySelector('[data-useffm]')?.focus(); } return; }
   if (b.dataset.mfx && /^#\/m\/(m5|m10)$/.test(location.hash)) { const k = b.dataset.mfx, mod = location.hash.slice(4); UI.mfx.has(k) ? UI.mfx.delete(k) : UI.mfx.add(k); refreshM510(mod); document.querySelector(`[data-mfx="${k}"]`)?.focus(); return; }

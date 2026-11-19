@@ -151,3 +151,8 @@ export const somatoXY = (en, me, ec) => ({ x: ec - en, y: 2 * me - (en + ec) });
 export const sweatLoss = (pre, post, fluidL, urineL) => pre - post + fluidL - urineL;  // L (1 kg ≈ 1 L)
 export const sweatRate = (lossL, hours) => lossL / hours;
 export const bmChangePct = (pre, post) => (pre - post) / pre * 100;
+
+// ================= Modul 9 — rehabilitasi =================
+export const lsiDist = (inj, healthy) => inj / healthy * 100;        // jarak atau torsi (Noyes 1991)
+export const lsiTime = (inj, healthy) => healthy / inj * 100;        // tes berwaktu: waktu sehat / waktu cedera
+export const hqRatio = (h, q) => h / q;                               // konvensional (Hkon/Qkon) atau fungsional (Heks/Qkon)

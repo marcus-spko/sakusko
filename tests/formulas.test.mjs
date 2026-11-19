@@ -3,9 +3,11 @@
 import assert from 'node:assert/strict';
 import {
   hrmax, hrmaxApplies, acsmZones, vo2Cooper, vo2Rockport, vo2Leger, legerSpeed, vo2Run24, vo2Queens, harvardLong, harvardShort,
-  vo2YoYo1, vo2Ift, sixMwtPred, siri, jp3Men, jpw3Women, dwDensity, dwRow, hastutiS4, hastutiAbd, ffmFrom, targetWeight, endomorphy, mesomorphy, hwr, ectomorphy, somatoXY, sweatLoss, sweatRate, bmChangePct, rmrTenHaaf, rmrTenHaafFfm, rmrMifflin, rmrHarrisRev, rmrCunningham, energyAvail, bmi, bmiCat, centralObese, whtr, whr, whrHigh, rmEpley, rmBrzycki, NUZZO, round05, gripCut, stsCut,
+  vo2YoYo1, vo2Ift, sixMwtPred, lsiDist, lsiTime, hqRatio, siri, jp3Men, jpw3Women, dwDensity, dwRow, hastutiS4, hastutiAbd, ffmFrom, targetWeight, endomorphy, mesomorphy, hwr, ectomorphy, somatoXY, sweatLoss, sweatRate, bmChangePct, rmrTenHaaf, rmrTenHaafFfm, rmrMifflin, rmrHarrisRev, rmrCunningham, energyAvail, bmi, bmiCat, centralObese, whtr, whr, whrHigh, rmEpley, rmBrzycki, NUZZO, round05, gripCut, stsCut,
 } from '../js/formulas.js';
 import { acsmResult } from '../js/screening.js';
+import { NYPR } from '../js/nypr.js';
+import { SUPPS } from '../js/m79.js';
 
 const near = (a, b, tol = 0.05) => Math.abs(a - b) <= tol;
 let n = 0;
@@ -94,6 +96,22 @@ check('Sweat: 70,0 → 68,9 kg, minum 0,8 L, urine 0,2 L → 1,70 L', near(sweat
 check('Sweat rate 1,70 L / 1,5 jam = 1,13 L/jam', near(sweatRate(1.7, 1.5), 1.133, 0.001));
 check('Kehilangan BB 1,57%', near(bmChangePct(70, 68.9), 1.571, 0.001));
 check('BB naik → perubahan negatif (tanda minum berlebihan)', bmChangePct(70, 70.4) < 0);
+
+// Modul 9 — contoh Kartu Spesifikasi v0.1.1
+check('LSI single hop 150 vs 170 cm = 88,2%', near(lsiDist(150, 170), 88.24, 0.01));
+check('LSI 6-m timed hop 2,4 vs 2,2 dtk = 91,7%', near(lsiTime(2.4, 2.2), 91.67, 0.01));
+check('H:Q konvensional 110/200 = 0,55', near(hqRatio(110, 200), 0.55, 1e-9));
+check('H:Q fungsional 190/200 = 0,95', near(hqRatio(190, 200), 0.95, 1e-9));
+// Modul 7 — contoh Kartu Spesifikasi v0.1.1 (75 kg)
+const sup = k => SUPPS.find(x => x.k === k).rows(75);
+check('Kafein 75 kg = 225–450 mg', sup('caf')[0][1][0] === 225 && sup('caf')[0][1][1] === 450);
+check('Kreatin loading 0,3 g/kg × 75 = 22,5 g/hari', near(sup('cre')[0][1][0], 22.5, 1e-9));
+check('Bikarbonat 15–30 g; optimal 22,5 g', near(sup('bic')[0][1][0], 15, 1e-9) && near(sup('bic')[0][1][1], 30, 1e-9) && near(sup('bic')[1][1][0], 22.5, 1e-9));
+check('Beta-alanin 65 mg/kg × 75 = 4,9 g/hari', near(sup('ba')[0][1][0], 4.875, 1e-9));
+check('Nitrat tidak per kg (310–560 mg)', SUPPS.find(x => x.k === 'nit').rows(40)[0][1].join() === '310,560');
+// Modul 6 — struktur NYPR
+check('NYPR: 13 segmen (6 belakang, 7 samping), tiap segmen skor 5/3/1', NYPR.length === 13 && NYPR.filter(x => x.view === 'back').length === 6 && NYPR.every(x => x.opts.map(o => o[0]).join() === '5,3,1'));
+check('NYPR: setiap pilihan punya ilustrasi SVG', NYPR.every(x => x.opts.every(o => o[2]().includes('<'))));
 
 // Skrining — algoritma ACSM (Riebe 2015): 6 kotak + pengecualian clearance ≤12 bulan
 const A = (active, known, symp, intent = '', cleared = '') => acsmResult({ active, known, symp, intent, cleared });
