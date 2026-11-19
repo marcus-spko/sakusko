@@ -1,6 +1,9 @@
 // SakuSKO — aplikasi utama. Tanpa server, tanpa penyimpanan data pasien.
-import { HRMAX, HRMAX_ORDER, hrmax, hrmaxApplies, acsmZones, karvonen, LIMITS, rmEpley, rmBrzycki, NUZZO, round05 } from './formulas.js';
+import { HRMAX, HRMAX_ORDER, hrmax, hrmaxApplies, acsmZones, karvonen, LIMITS, rmEpley, rmBrzycki, NUZZO, round05,
+  rmrTenHaaf, rmrTenHaafFfm, rmrMifflin, rmrHarrisRev, rmrCunningham, energyAvail, CHO, PROTEIN, FAT_PCT, PAL_BANDS,
+  bmi, bmiCat, centralObese, whtr, whr, whrHigh } from './formulas.js';
 import { TESTS, REF, RM_INFO } from './tests.js';
+import { M48_REF, M4_FIELDS, M8_FIELDS, M48_T } from './m48.js';
 import { MODULES, T, M1_FORMULAS, KARVONEN_REF, GLOSSARY, ABOUT } from './i18n.js';
 import { S, load, save, clear, expireIfDue, expiresAt, isEmpty } from './session.js';
 import { startTitleCase } from './titlecase.js';
@@ -391,6 +394,172 @@ function refreshSkr(focusSel) {
   if (focusSel) document.querySelector(focusSel)?.focus();
 }
 
+
+// ---------- Modul 4 (energi & makro) dan Modul 8 (antropometri dasar) ----------
+const tt = () => ({ ...t(), ...M48_T[lang] });
+const CUSTOM = { m4: { fields: M4_FIELDS, needs: ['age', 'sex', 'weight', 'height'] }, m8: { fields: M8_FIELDS, needs: ['sex', 'weight', 'height'] } };
+const unitOf = u => (typeof u === 'string' ? u : u[lang]);
+function customState(mod) {
+  const cfg = CUSTOM[mod], base = m1State(), v = {}, err = {};
+  for (const f of cfg.fields) {
+    const id = fid(mod, 'x', f.k), raw = S[mod].v[`x.${f.k}`] ?? '', x = parse(raw);
+    v[f.k] = NaN;
+    if (raw !== '') { if (!(x >= f.lim[0] && x <= f.lim[1])) err[id] = t().errRange(...f.lim); else v[f.k] = x; }
+  }
+  const b = baseVals();
+  if (mod === 'm4' && Number.isFinite(v.ffm) && Number.isFinite(b.weight) && v.ffm >= b.weight) { err[fid(mod, 'x', 'ffm')] = tt().ffmErr; v.ffm = NaN; }
+  for (const k of ['age', 'weight', 'height']) if (base.allErr[k]) err[k] = base.allErr[k];
+  const missing = cfg.needs.filter(k => (k === 'sex' ? !S.base.sex : S.base[k] === '' || !!base.allErr[k]));
+  const shown = Object.fromEntries(Object.entries(err).filter(([k]) => UI.touched.has(k)));
+  return { v, b, err: shown, missing, ok: !missing.length };
+}
+function customFields(mod, s) {
+  const cfg = CUSTOM[mod], out = [];
+  for (const k of cfg.needs) {
+    if (k === 'age') out.push(field('age', t().age, t().years, S.base.age, { err: s.err.age }));
+    if (k === 'sex') out.push(sexField());
+    if (k === 'weight') out.push(field('weight', t().weight, 'kg', S.base.weight, { err: s.err.weight, dec: true }));
+    if (k === 'height') out.push(field('height', t().height, 'cm', S.base.height, { err: s.err.height, dec: true }));
+  }
+  for (const f of cfg.fields) {
+    const id = fid(mod, 'x', f.k);
+    out.push(field(id, f.label[lang], unitOf(f.unit), S[mod].v[`x.${f.k}`] ?? '', { req: false, tag: f.tag ? f.tag[lang] : '', hint: f.hint ? f.hint[lang] : '', err: s.err[id], dec: !!f.dec, key: `x.${f.k}`, mod }));
+  }
+  return `<div style="display:flex;flex-direction:column;gap:14px">${out.join('')}</div>`;
+}
+const m48Refs = keys => keys.map(k => `<span class="r">${esc(M48_REF[k].ref)}${M48_REF[k].doi ? ` <a href="https://doi.org/${M48_REF[k].doi}" target="_blank" rel="noopener">doi:${M48_REF[k].doi}</a>` : ''}</span>`).join('');
+function fxBox48(id, f, sLines, refs) {
+  return `<div class="fbox" id="mfx-${id}"><span class="k">${esc(t().fFormula)}</span>${f.map(x => `<span class="f" style="font-size:14px">${esc(x)}</span>`).join('')}
+    ${sLines.length ? `<span class="k">${esc(t().fWithData)}</span>${sLines.map(x => `<span class="s" style="font-size:14px">${esc(x)}</span>`).join('')}` : ''}
+    <span class="k">${esc(t().fSource)}</span>${m48Refs(refs)}<span class="hint">${esc(t().doiNote)}</span></div>`;
+}
+const card = (hid, title, def, inner, mt = true) => `<section class="card" aria-labelledby="${hid}"${mt ? ' style="margin-top:14px"' : ''}><div class="lbl-row"><h2 class="h2" id="${hid}">${esc(title)}</h2>${def ? ibtn(def, title) : ''}</div>${inner}</section>`;
+const emptyP = txt => `<p class="empty" style="margin:0">${esc(txt)}</p>`;
+
+function m4Calc(s) {
+  const { v, b } = s, male = b.sex === 'M', T = tt();
+  if (!s.ok) return null;
+  const r = { eq: {} };
+  r.eq.th = rmrTenHaaf(b.weight, b.height / 100, b.age, male);
+  if (Number.isFinite(v.ffm)) r.eq.thf = rmrTenHaafFfm(v.ffm);
+  r.eq.mif = rmrMifflin(b.weight, b.height, b.age, male);
+  r.eq.hb = rmrHarrisRev(b.weight, b.height, b.age, male);
+  if (Number.isFinite(v.ffm)) r.eq.cun = rmrCunningham(v.ffm);
+  if (!r.eq[S.m4.basis]) S.m4.basis = 'th';
+  r.basis = S.m4.basis; r.rmr = r.eq[r.basis];
+  if (Number.isFinite(v.pal)) { r.pal = v.pal; r.tdee = r.rmr * v.pal; r.band = PAL_BANDS.find(x => v.pal >= x.lo && v.pal <= x.hi + 0.005)?.k; }
+  if (S.m4.cho && CHO[S.m4.cho]) r.cho = CHO[S.m4.cho].map(g => [g, g * b.weight]);
+  r.pro = PROTEIN.map(g => [g, g * b.weight]);
+  if (r.tdee) r.fat = FAT_PCT.map(p => r.tdee * p / 100 / 9);
+  if ([v.ffm, v.ei, v.eee].every(Number.isFinite)) r.ea = energyAvail(v.ei, v.eee, v.ffm);
+  r.outAge = b.age < 18 || b.age > 35;
+  return r;
+}
+const n1 = x => num(x, Number.isInteger(x) ? 0 : 1);
+const rng = (a, b2, d = 0) => `${num(a, d)}–${num(b2, d)}`;
+function m4Out(s) {
+  const T = tt(), r = m4Calc(s), b = s.b, male = b.sex === 'M';
+  if (!r) return card('h-rmr', T.rmrHead, 'rmr', emptyP(t().needBase(s.missing.map(k => t().baseNames[k]).join(', '))), false);
+  const row = (k, val, badge) => `<div class="frow ${r.eq[k] ? '' : 'off'}"><div class="frow-main"><div class="frow-name" style="font-size:14px">${esc(T.eq[k])}${badge ? `<span class="badge">${esc(badge)}</span>` : ''}</div></div><span class="frow-val" style="font-size:17px">${val}</span></div>`;
+  const rows = ['th', 'thf', 'mif', 'hb', 'cun'].map(k => row(k, r.eq[k] ? `${num(r.eq[k])} <small>${esc(T.kcal)}</small>` : `<span class="opt">${esc(T.needFfm)}</span>`, k === 'th' ? T.main : '')).join('');
+  const fRmr = ['Ten Haaf (BB): 11,936×BB + 587,728×TB(m) − 8,129×usia + 191,027×JK + 29,279', 'Ten Haaf (FFM): 22,771×FFM + 484,264',
+    'Mifflin-St Jeor: 10×BB + 6,25×TB(cm) − 5×usia + 5 (pria) / − 161 (wanita)', 'Harris-Benedict revisi, pria: 88,362 + 13,397×BB + 4,799×TB − 5,677×usia',
+    'Harris-Benedict revisi, wanita: 447,593 + 9,247×BB + 3,098×TB − 4,330×usia', 'Cunningham: 500 + 22×FFM', lang === 'id' ? 'JK: pria = 1, wanita = 0' : 'Sex: male = 1, female = 0'];
+  const sRmr = [`Ten Haaf: 11,936×${num(b.weight, 1)} + 587,728×${num(b.height / 100, 2)} − 8,129×${num(b.age)} + 191,027×${male ? 1 : 0} + 29,279 = ${num(r.eq.th)}`];
+  const rmrCard = card('h-rmr', T.rmrHead, 'rmr', `${rows}
+    ${r.outAge ? `<div class="note">${svg('alert', '#9A3412')}<span>${esc(T.tenHaafAge)}</span></div>` : ''}
+    <span class="hint">${esc(t().popLbl)}: ${esc(lang === 'id' ? 'Ten Haaf: 90 atlet rekreasional Belanda 18–35 th; meta-analisis 2023 (29 studi, 1.430 atlet) menilainya paling presisi; Mifflin-St Jeor cenderung meleset pada atlet.' : 'Ten Haaf: 90 Dutch recreational athletes aged 18–35; a 2023 meta-analysis (29 studies, 1,430 athletes) found it most precise; Mifflin-St Jeor tends to miss in athletes.')}</span>
+    ${fxBtn('rmr')}${UI.mfx.has('rmr') ? fxBox48('rmr', fRmr, sRmr, ['tenhaaf', 'oneill', 'mifflin', 'roza', 'cunningham']) : ''}`, false);
+  const bopts = Object.keys(r.eq).map(k => `<option value="${k}" ${r.basis === k ? 'selected' : ''}>${esc(T.eq[k])} · ${num(r.eq[k])}</option>`).join('');
+  const tdeeInner = !r.tdee ? emptyP(T.tdeeNeed) : `<label class="field"><span class="lbl">${esc(T.tdeeBasis)}</span><select class="sel" id="rmrBasis">${bopts}</select></label>
+    <div class="big"><b>${num(r.tdee)}</b><span>${esc(T.kcal)}</span></div>
+    <span class="hint">PAL ${num(r.pal, 2)}${r.band ? ` · ${esc(T.palBand[r.band])}` : ''}</span>
+    ${fxBtn('tdee')}${UI.mfx.has('tdee') ? fxBox48('tdee', ['TDEE = RMR × PAL'], [`${num(r.rmr)} × ${num(r.pal, 2)} = ${num(r.tdee)}`], ['fao']) : ''}`;
+  const choSeg = `<div class="field"><span class="lbl" id="choLbl">${esc(T.choLoad)}</span><div class="optlist" role="group" aria-labelledby="choLbl">${Object.keys(CHO).map(k => `<button type="button" data-cho="${k}" aria-pressed="${S.m4.cho === k}">${esc(T.cho[k])} · ${CHO[k][0]}–${CHO[k][1]} g/kg</button>`).join('')}</div></div>`;
+  const gday = lang === 'id' ? 'g/hari' : 'g/day';
+  const macro = `${choSeg}
+    ${r.cho ? kvRow(T.choRow, `${rng(r.cho[0][1], r.cho[1][1])} ${gday}`) : emptyP(T.choNeed)}
+    ${kvRow(T.proRow, `${rng(r.pro[0][1], r.pro[1][1])} ${gday}`)}
+    ${r.fat ? kvRow(T.fatRow, `${rng(r.fat[0], r.fat[1])} ${gday}`) : `<span class="hint">${esc(T.fatNeed)}</span>`}
+    <div class="note">${svg('info', '#9A3412')}<span>${esc(T.macroNote)}</span></div>
+    ${fxBtn('mac')}${UI.mfx.has('mac') ? fxBox48('mac', [lang === 'id' ? 'Karbohidrat: 3–5 / 5–7 / 6–10 / 8–12 g/kg/hari sesuai beban latihan' : 'Carbohydrate: 3–5 / 5–7 / 6–10 / 8–12 g/kg/day by training load',
+      lang === 'id' ? 'Protein: 1,2–2,0 g/kg/hari' : 'Protein: 1.2–2.0 g/kg/day', lang === 'id' ? 'Lemak: 20–35% energi; 1 g lemak = 9 kkal' : 'Fat: 20–35% of energy; 1 g fat = 9 kcal'], [], ['thomas']) : ''}`;
+  const eaInner = r.ea === undefined ? emptyP(T.eaNeed) : `<div class="big"><b>${num(r.ea, 1)}</b><span>${esc(T.eaUnit)}</span></div>
+    ${r.ea < 30 ? `<div class="note">${svg('alert', '#9A3412')}<span>${esc(T.eaLow)}</span></div>` : ''}
+    <span class="hint">${esc(T.eaNote)}</span>
+    ${fxBtn('ea')}${UI.mfx.has('ea') ? fxBox48('ea', ['EA = (asupan energi − energi latihan) / FFM'], [`(${num(s.v.ei)} − ${num(s.v.eee)}) / ${num(s.v.ffm, 1)} = ${num(r.ea, 1)}`], ['ioc']) : ''}`;
+  return `${rmrCard}${card('h-tdee', T.tdeeHead, 'tdee', tdeeInner)}${card('h-mac', T.macroHead, null, macro)}${card('h-ea', T.eaHead, 'ea', eaInner)}${copyCard(customCopy('m4'))}`;
+}
+
+function m8Calc(s) {
+  if (!s.ok) return null;
+  const { v, b } = s, male = b.sex === 'M', r = {};
+  r.bmi = bmi(b.weight, b.height); r.cat = bmiCat(r.bmi);
+  if (Number.isFinite(v.wc)) { r.wc = v.wc; r.central = centralObese(v.wc, male); r.whtr = whtr(v.wc, b.height); }
+  if (Number.isFinite(v.wc) && Number.isFinite(v.hc)) { r.whr = whr(v.wc, v.hc); r.whrHigh = whrHigh(r.whr, male); }
+  return r;
+}
+function m8Out(s) {
+  const T = tt(), r = m8Calc(s), b = s.b, male = b.sex === 'M';
+  if (!r) return card('h-bmi', T.bmiHead, 'bmi', emptyP(t().needBase(s.missing.map(k => t().baseNames[k]).join(', '))), false);
+  const bmiCard = card('h-bmi', T.bmiHead, 'bmi', `<div class="big"><b>${num(r.bmi, 1)}</b><span>kg/m²</span></div>
+    ${kvRow(lang === 'id' ? 'Kategori' : 'Category', T.bmiCat[r.cat])}
+    ${r.bmi >= 23 ? `<div class="note">${svg('info', '#9A3412')}<span>${esc(T.bmiMuscle)}</span></div>` : ''}
+    ${fxBtn('bmi')}${UI.mfx.has('bmi') ? fxBox48('bmi', ['IMT = BB / TB(m)²', lang === 'id' ? '<18,5 BB kurang; 18,5–22,9 normal; 23–24,9 BB lebih; 25–29,9 obesitas I; ≥30 obesitas II' : '<18.5 underweight; 18.5–22.9 normal; 23–24.9 overweight; 25–29.9 obesity I; ≥30 obesity II'],
+      [`${num(b.weight, 1)} / ${num(b.height / 100, 2)}² = ${num(r.bmi, 1)}`], ['pnpk']) : ''}`, false);
+  const wcInner = r.wc === undefined ? emptyP(T.wcNeed) : `${kvRow(T.wcRow, `${n1(r.wc)} cm`)}<span class="hint">${esc(r.central ? T.wcCentral : T.wcNot)} (${male ? '>90' : '>80'} cm)</span>
+    ${kvRow(T.whtrRow, num(r.whtr, 3))}<span class="hint">${esc(r.whtr >= 0.5 ? T.whtrHigh : T.whtrOk)}</span>
+    ${r.whr !== undefined ? `${kvRow(T.whrRow, num(r.whr, 3))}<span class="hint">${esc(r.whrHigh ? T.whrHighTxt(male) : T.whrOk(male))}</span>` : ''}
+    ${fxBtn('wc')}${UI.mfx.has('wc') ? fxBox48('wc', [lang === 'id' ? 'Obesitas sentral: lingkar pinggang >90 cm (pria), >80 cm (wanita)' : 'Central obesity: waist >90 cm (men), >80 cm (women)', 'WHtR = lingkar pinggang / TB (cm); ≥0,5 risiko meningkat', 'WHR = lingkar pinggang / lingkar panggul; ≥0,90 pria, ≥0,85 wanita'],
+      [`WHtR = ${n1(r.wc)} / ${n1(b.height)} = ${num(r.whtr, 3)}`, ...(r.whr !== undefined ? [`WHR = ${n1(r.wc)} / ${n1(s.v.hc)} = ${num(r.whr, 3)}`] : [])], ['pnpk', 'nice', 'whowc']) : ''}`;
+  return `${bmiCard}${card('h-wc', T.wcHead, 'whtr', wcInner)}${copyCard(customCopy('m8'))}`;
+}
+
+function customCopy(mod) {
+  const s = customState(mod), T = tt(), lines = [], gday = lang === 'id' ? 'g/hari' : 'g/day';
+  let src = '';
+  if (mod === 'm4') {
+    const r = m4Calc(s); if (!r) return null;
+    lines.push(`RMR ${T.eq[r.basis]} ${num(r.rmr)} ${T.kcal}${r.outAge ? (lang === 'id' ? ' (usia di luar populasi asal Ten Haaf)' : ' (age outside Ten Haaf sample)') : ''}`);
+    if (r.tdee) lines.push(`TDEE (PAL ${num(r.pal, 2)}) ${num(r.tdee)} ${T.kcal}`);
+    if (r.cho) lines.push(`${T.choRow} ${CHO[S.m4.cho][0]}–${CHO[S.m4.cho][1]} g/kg = ${rng(r.cho[0][1], r.cho[1][1])} ${gday}`);
+    lines.push(`${T.proRow} 1,2–2,0 g/kg = ${rng(r.pro[0][1], r.pro[1][1])} ${gday}`.replace('1,2–2,0', lang === 'id' ? '1,2–2,0' : '1.2–2.0'));
+    if (r.fat) lines.push(`${T.fatRow} ${rng(r.fat[0], r.fat[1])} ${gday}`);
+    if (r.ea !== undefined) lines.push(`EA ${num(r.ea, 1)} ${T.eaUnit}`);
+    src = 'ten Haaf & Weijs 2014; ACSM/AND/DC 2016' + (r.ea !== undefined ? '; IOC 2023' : '');
+  } else {
+    const r = m8Calc(s); if (!r) return null;
+    const male = s.b.sex === 'M';
+    lines.push(`IMT ${num(r.bmi, 1)} kg/m² (${T.bmiCat[r.cat]}, PNPK 2025)`.replace('IMT', lang === 'id' ? 'IMT' : 'BMI'));
+    if (r.wc !== undefined) lines.push(`${T.wcRow} ${n1(r.wc)} cm — ${r.central ? T.wcCentral : T.wcNot}`, `WHtR ${num(r.whtr, 3)} — ${r.whtr >= 0.5 ? T.whtrHigh : T.whtrOk}`);
+    if (r.whr !== undefined) lines.push(`WHR ${num(r.whr, 3)} — ${r.whrHigh ? T.whrHighTxt(male) : T.whrOk(male)}`);
+    src = 'PNPK Obesitas Dewasa 2025' + (r.wc !== undefined ? '; NICE NG246' : '') + (r.whr !== undefined ? '; WHO 2011' : '');
+  }
+  const body = [...lines, t().srcLine(src)];
+  const M = MODULES.find(m => m.id === mod), bs = baseSummary();
+  const text = [t().copyHeaderMod(Number(mod.slice(1)), M.title[lang], todayStr()), ...(bs ? [`${t().baseLabel}: ${bs}`] : []), ...body].join('\n');
+  return { text, body };
+}
+function renderCustom(mod) {
+  const i = MODULES.findIndex(m => m.id === mod), M = MODULES[i], s = customState(mod), T = tt();
+  app.innerHTML = `${pageHeader(t().moduleLabel(String(i + 1).padStart(2, '0'), M.cat[lang]), M.title[lang], T[`${mod}Sub`])}
+  <main class="main">
+    <div class="note">${svg('body', '#9A3412')}<span>${esc(T[`${mod}Pop`])}</span></div>
+    <section class="card" aria-labelledby="h-in">
+      <div class="row-between"><h2 class="h2" id="h-in">${esc(t().dataIn)}</h2><span class="muted"><span class="req">*</span> ${esc(t().required)}</span></div>
+      <div id="fields">${customFields(mod, s)}</div>
+      <div class="privacy">${svg('lock', '#5C4F45', 16)}<span>${esc(t().storedNote)}</span></div>
+    </section>
+    <div id="modout">${mod === 'm4' ? m4Out(s) : m8Out(s)}</div>
+    <div class="foot"><span>${esc(T[`${mod}Sources`])}</span><span>${esc(t().meta2)}</span></div>
+  </main>${nav('calc')}`;
+}
+function refreshCustom(mod, keepInputs = false) {
+  const s = customState(mod);
+  if (keepInputs) updateFieldMsgs(s); else document.getElementById('fields').innerHTML = customFields(mod, s);
+  document.getElementById('modout').innerHTML = mod === 'm4' ? m4Out(s) : m8Out(s);
+}
+
 // ---------- Modul 2 & 3: tes berbasis data (lihat tests.js) ----------
 const MODNUM = { m2: '02', m3: '03' };
 const DEFKEY = { ymca: 'steptest', harvard: 'fi', yoyo: 'yoyo', ift: 'vift', smwt: 'smwt', grip: 'grip', sts: 'sts' };
@@ -594,9 +763,9 @@ function refreshCurrent(keepInputs = false) {
   const h = location.hash;
   if (h === '#/data') { if (keepInputs) updateFieldMsgs(m1State()); else document.getElementById('fields').innerHTML = baseFields(m1State()); }
   else if (/^#\/m\/m1$/.test(h)) refreshM1(keepInputs);
-  else { const mm = h.match(/^#\/m\/(m2|m3)$/); if (mm) refreshMod(mm[1], keepInputs); }
+  else { const mm = h.match(/^#\/m\/(m2|m3)$/); if (mm) refreshMod(mm[1], keepInputs); const mc = h.match(/^#\/m\/(m4|m8)$/); if (mc) refreshCustom(mc[1], keepInputs); }
 }
-function currentState() { const mm = location.hash.match(/^#\/m\/(m2|m3)$/); return mm ? modState(mm[1]) : m1State(); }
+function currentState() { const mm = location.hash.match(/^#\/m\/(m2|m3)$/); if (mm) return modState(mm[1]); const mc = location.hash.match(/^#\/m\/(m4|m8)$/); return mc ? customState(mc[1]) : m1State(); }
 
 // ---------- Sesi: data dasar & ringkasan ----------
 const hhmm = ts => { const d = new Date(ts); return `${String(d.getHours()).padStart(2, '0')}.${String(d.getMinutes()).padStart(2, '0')}`; };
@@ -652,8 +821,8 @@ function moduleCopies() {
   if (sk) out.push({ id: 'skr', title: t().skrTitle, text: sk.text, body: sk.body });
   m1Out(m1State());
   if (UI.copy) out.push({ id: 'm1', title: MODULES[0].title[lang], text: UI.copy, body: UI.copy.split('\n').slice(1) });
-  for (const mod of ['m2', 'm3']) {
-    const c = modCopy(mod);
+  for (const mod of ['m2', 'm3', 'm4', 'm8']) {
+    const c = mod === 'm4' || mod === 'm8' ? customCopy(mod) : modCopy(mod);
     if (c) out.push({ id: mod, title: MODULES.find(m => m.id === mod).title[lang], text: c.text, body: c.body });
   }
   return out;
@@ -708,7 +877,7 @@ function route() {
   if (h === '#/m/skr') renderSkr();
   else if (mm) {
     const i = MODULES.findIndex(m => m.id === mm[1]);
-    if (i === 0) renderM1(); else if (mm[1] === 'm2' || mm[1] === 'm3') renderMod(mm[1]); else if (i > 0) renderWip(MODULES[i], i + 1); else renderHome();
+    if (i === 0) renderM1(); else if (mm[1] === 'm2' || mm[1] === 'm3') renderMod(mm[1]); else if (mm[1] === 'm4' || mm[1] === 'm8') renderCustom(mm[1]); else if (i > 0) renderWip(MODULES[i], i + 1); else renderHome();
   } else if (h === '#/data') renderBase();
   else if (h === '#/ringkasan') renderSummary();
   else if (h === '#/glosarium') renderGloss();
@@ -748,6 +917,7 @@ app.addEventListener('change', e => {
     const mod = location.hash.match(/^#\/m\/(m2|m3)$/)?.[1]; if (!mod) return;
     S[mod].test = e.target.value; save(); renderMod(mod); document.getElementById('testSel')?.focus(); return;
   }
+  if (e.target.id === 'rmrBasis') { S.m4.basis = e.target.value; save(); refreshCustom('m4'); document.getElementById('rmrBasis')?.focus(); return; }
   if (e.target.id === 'rmBasis') { S.m3.basis = e.target.value; save(); refreshMod('m3'); document.getElementById('rmBasis')?.focus(); return; }
   if (e.target.id === 'base') { S.m1.basis = e.target.value; save(); refreshM1(); document.getElementById('base')?.focus(); }
 });
@@ -767,6 +937,8 @@ app.addEventListener('click', async e => {
   if (b.dataset.aha) { const k = b.dataset.aha; if (S.skr.aha[k] === b.dataset.v) delete S.skr.aha[k]; else S.skr.aha[k] = b.dataset.v; save(); UI.clearArmed = false; refreshSkr(`[data-aha="${k}"][data-v="${b.dataset.v}"]`); return; }
   if ('aharest' in b.dataset) { AHA14.forEach(x => { if (!S.skr.aha[x.k]) S.skr.aha[x.k] = 'n'; }); save(); refreshSkr('#h-ah'); return; }
   if (b.dataset.parq) { S.skr.parq = S.skr.parq === b.dataset.parq ? '' : b.dataset.parq; save(); refreshSkr(`[data-parq="${b.dataset.parq}"]`); return; }
+  if (b.dataset.cho) { S.m4.cho = S.m4.cho === b.dataset.cho ? '' : b.dataset.cho; save(); refreshCustom('m4'); document.querySelector(`[data-cho="${b.dataset.cho}"]`)?.focus(); return; }
+  if (b.dataset.mfx && /^#\/m\/(m4|m8)$/.test(location.hash)) { const k = b.dataset.mfx, mod = location.hash.slice(4); UI.mfx.has(k) ? UI.mfx.delete(k) : UI.mfx.add(k); refreshCustom(mod); document.querySelector(`[data-mfx="${k}"]`)?.focus(); return; }
   if (b.dataset.mfx) { const k = b.dataset.mfx, mod = location.hash.slice(4); UI.mfx.has(k) ? UI.mfx.delete(k) : UI.mfx.add(k); refreshMod(mod); document.querySelector(`[data-mfx="${k}"]`)?.focus(); return; }
   if (b.dataset.ex) { S.m3.ex = b.dataset.ex; save(); refreshMod('m3'); document.querySelector(`[data-ex="${b.dataset.ex}"]`)?.focus(); return; }
   if ('karv' in b.dataset) { UI.karvOpen = !UI.karvOpen; refreshM1(); document.querySelector('[data-karv]')?.focus(); return; }

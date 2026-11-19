@@ -4,11 +4,11 @@ export const MODULES = [
   { id: 'm1',  icon: 'heart',    ready: true,  title: { id: 'HRmax & zona', en: 'HRmax & zones' },            cat: { id: 'Kardio', en: 'Cardio' }, kw: 'karvonen tanaka denyut heart rate' },
   { id: 'm2',  icon: 'activity', ready: true,  title: { id: 'VO₂max lapangan', en: 'Field VO₂max' },          cat: { id: 'Kardio', en: 'Cardio' }, kw: 'cooper rockport beep shuttle léger leger 2,4 km 2.4 km step test queens ymca harvard yo-yo 30-15 ift 6mwt jalan 6 menit' },
   { id: 'm3',  icon: 'dumbbell', ready: true,  title: { id: 'Kekuatan & 1RM', en: 'Strength & 1RM' },         cat: { id: 'Kekuatan', en: 'Strength' }, kw: '1rm epley brzycki %1rm repetisi handgrip genggam sit-to-stand sts awgs sarkopenia sarcopenia' },
-  { id: 'm4',  icon: 'food',     ready: false, title: { id: 'Energi & makro', en: 'Energy & macros' },        cat: { id: 'Nutrisi', en: 'Nutrition' } },
+  { id: 'm4',  icon: 'food',     ready: true,  title: { id: 'Energi & makro', en: 'Energy & macros' },        cat: { id: 'Nutrisi', en: 'Nutrition' }, kw: 'bmr rmr tdee pal ten haaf mifflin harris cunningham kalori kcal karbohidrat protein lemak makro energy availability ea reds' },
   { id: 'm5',  icon: 'ruler',    ready: false, title: { id: 'Skinfold & %lemak', en: 'Skinfold & %fat' },     cat: { id: 'Komposisi', en: 'Composition' } },
   { id: 'm6',  icon: 'flask',    ready: false, title: { id: 'RER & substrat', en: 'RER & substrate' },        cat: { id: 'Metabolik', en: 'Metabolic' } },
   { id: 'm7',  icon: 'pill',     ready: false, title: { id: 'Dosis suplemen', en: 'Supplement dosing' },      cat: { id: 'Nutrisi', en: 'Nutrition' } },
-  { id: 'm8',  icon: 'body',     ready: false, title: { id: 'Antropometri dasar', en: 'Basic anthropometry' }, cat: { id: 'Komposisi', en: 'Composition' } },
+  { id: 'm8',  icon: 'body',     ready: true,  title: { id: 'Antropometri dasar', en: 'Basic anthropometry' }, cat: { id: 'Komposisi', en: 'Composition' }, kw: 'imt bmi lingkar pinggang panggul waist hip whtr whr obesitas obesity pnpk' },
   { id: 'm9',  icon: 'balance',  ready: false, title: { id: 'LSI & rasio H:Q', en: 'LSI & H:Q ratio' },       cat: { id: 'Rehabilitasi', en: 'Rehab' } },
   { id: 'm10', icon: 'drop',     ready: false, title: { id: 'Sweat rate', en: 'Sweat rate' },                 cat: { id: 'Hidrasi', en: 'Hydration' } },
 ];

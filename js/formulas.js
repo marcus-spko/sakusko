@@ -93,3 +93,30 @@ export function gripCut(age, male) {
 }
 // 5× sit-to-stand: AWGS 2019, ≥12 dtk = performa fisik rendah (≥65 th). null = tidak ada ambang.
 export const stsCut = age => (age >= 65 ? 12 : null);
+
+// ================= Modul 4 — energi (kkal/hari) =================
+export const rmrTenHaaf = (w, hM, age, male) => 11.936 * w + 587.728 * hM - 8.129 * age + 191.027 * (male ? 1 : 0) + 29.279; // ten Haaf & Weijs 2014
+export const rmrTenHaafFfm = ffm => 22.771 * ffm + 484.264;
+export const rmrMifflin = (w, hCm, age, male) => 10 * w + 6.25 * hCm - 5 * age + (male ? 5 : -161);                  // Mifflin 1990
+export const rmrHarrisRev = (w, hCm, age, male) => (male ? 88.362 + 13.397 * w + 4.799 * hCm - 5.677 * age : 447.593 + 9.247 * w + 3.098 * hCm - 4.330 * age); // Roza & Shizgal 1984
+export const rmrCunningham = ffm => 500 + 22 * ffm;                                                                       // Cunningham 1980
+export const energyAvail = (ei, eee, ffm) => (ei - eee) / ffm;                                                           // IOC 2023
+// Karbohidrat (g/kg/hari) menurut beban latihan — ACSM/AND/DC 2016
+export const CHO = { light: [3, 5], mod: [5, 7], high: [6, 10], vhigh: [8, 12] };
+export const PROTEIN = [1.2, 2.0];   // g/kg/hari
+export const FAT_PCT = [20, 35];     // % energi
+export const PAL_BANDS = [{ k: 'sed', lo: 1.40, hi: 1.69 }, { k: 'act', lo: 1.70, hi: 1.99 }, { k: 'vig', lo: 2.00, hi: 2.40 }]; // FAO/WHO/UNU 2004
+
+// ================= Modul 8 — antropometri dasar =================
+export const bmi = (w, hCm) => w / ((hCm / 100) ** 2);
+export function bmiCat(b) {                                   // PNPK Tata Laksana Obesitas Dewasa 2025 (Asia-Pasifik)
+  if (b < 18.5) return 'under';
+  if (b < 23) return 'normal';
+  if (b < 25) return 'over';
+  if (b < 30) return 'ob1';
+  return 'ob2';
+}
+export const centralObese = (wc, male) => wc > (male ? 90 : 80);  // PNPK 2025
+export const whtr = (wc, hCm) => wc / hCm;                          // NICE NG246: ≥0,5 risiko meningkat
+export const whr = (wc, hc) => wc / hc;                             // WHO 2008/2011: ≥0,90 pria, ≥0,85 wanita
+export const whrHigh = (r, male) => r >= (male ? 0.90 : 0.85);

@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import {
   hrmax, hrmaxApplies, acsmZones, vo2Cooper, vo2Rockport, vo2Leger, legerSpeed, vo2Run24, vo2Queens, harvardLong, harvardShort,
-  vo2YoYo1, vo2Ift, sixMwtPred, rmEpley, rmBrzycki, NUZZO, round05, gripCut, stsCut,
+  vo2YoYo1, vo2Ift, sixMwtPred, rmrTenHaaf, rmrTenHaafFfm, rmrMifflin, rmrHarrisRev, rmrCunningham, energyAvail, bmi, bmiCat, centralObese, whtr, whr, whrHigh, rmEpley, rmBrzycki, NUZZO, round05, gripCut, stsCut,
 } from '../js/formulas.js';
 import { acsmResult } from '../js/screening.js';
 
@@ -54,6 +54,23 @@ check('Handgrip ≥65 th: pria 28, wanita 18', gripCut(70, true) === 28 && gripC
 check('Handgrip 50–64 th: pria 34, wanita 20', gripCut(55, true) === 34 && gripCut(55, false) === 20);
 check('Handgrip <50 th: tanpa ambang', gripCut(49, true) === null);
 check('5×STS: ambang 12 dtk hanya ≥65 th', stsCut(65) === 12 && stsCut(64) === null);
+
+// Modul 4 — contoh Kartu Spesifikasi v0.1.1 (pria 30 th, 75 kg, 172 cm, FFM 62,5 kg)
+check('Ten Haaf (BB) = 1.883', Math.round(rmrTenHaaf(75, 1.72, 30, true)) === 1883);
+check('Ten Haaf versi kJ ÷ 4,184 = versi kkal (uji silang)', near((49.940 * 75 + 2459.053 * 1.72 - 34.014 * 30 + 799.257 * 1 + 122.502) / 4.184, rmrTenHaaf(75, 1.72, 30, true), 1));
+check('Ten Haaf (FFM 62,5) = 1.907', Math.round(rmrTenHaafFfm(62.5)) === 1907);
+check('Mifflin-St Jeor pria = 1.680', rmrMifflin(75, 172, 30, true) === 1680);
+check('Mifflin-St Jeor wanita = pria − 166', rmrMifflin(75, 172, 30, false) === 1514);
+check('Harris-Benedict revisi pria = 1.748', Math.round(rmrHarrisRev(75, 172, 30, true)) === 1748);
+check('Cunningham (FFM 62,5) = 1.875', rmrCunningham(62.5) === 1875);
+check('TDEE Ten Haaf × PAL 1,75 = 3.294', Math.round(rmrTenHaaf(75, 1.72, 30, true) * 1.75) === 3294);
+check('EA (2.400 − 600) / 62,5 = 28,8', near(energyAvail(2400, 600, 62.5), 28.8, 0.001));
+// Modul 8 — contoh Kartu Spesifikasi v0.1.1 (75 kg, 172 cm, pinggang 88, panggul 98)
+check('IMT 75 kg / 172 cm = 25,35 → obesitas I (PNPK 2025)', near(bmi(75, 172), 25.35, 0.01) && bmiCat(bmi(75, 172)) === 'ob1');
+check('Batas IMT: 22,9 normal; 23,0 BB lebih; 24,9 BB lebih; 25,0 obesitas I; 30,0 obesitas II', bmiCat(22.9) === 'normal' && bmiCat(23) === 'over' && bmiCat(24.9) === 'over' && bmiCat(25) === 'ob1' && bmiCat(30) === 'ob2' && bmiCat(18.4) === 'under');
+check('Lingkar pinggang 88 cm pria: bukan obesitas sentral; 91 cm: ya; wanita 81 cm: ya', !centralObese(88, true) && centralObese(91, true) && centralObese(81, false) && !centralObese(80, false));
+check('WHtR 88/172 = 0,512 (≥0,5)', near(whtr(88, 172), 0.512, 0.001));
+check('WHR 88/98 = 0,898 → di bawah 0,90 (pria); wanita ≥0,85 → risiko', near(whr(88, 98), 0.898, 0.001) && !whrHigh(whr(88, 98), true) && whrHigh(whr(88, 98), false));
 
 // Skrining — algoritma ACSM (Riebe 2015): 6 kotak + pengecualian clearance ≤12 bulan
 const A = (active, known, symp, intent = '', cleared = '') => acsmResult({ active, known, symp, intent, cleared });
