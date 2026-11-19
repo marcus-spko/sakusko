@@ -120,3 +120,34 @@ export const centralObese = (wc, male) => wc > (male ? 90 : 80);  // PNPK 2025
 export const whtr = (wc, hCm) => wc / hCm;                          // NICE NG246: ≥0,5 risiko meningkat
 export const whr = (wc, hc) => wc / hc;                             // WHO 2008/2011: ≥0,90 pria, ≥0,85 wanita
 export const whrHigh = (r, male) => r >= (male ? 0.90 : 0.85);
+
+// ================= Modul 5 — skinfold & somatotipe =================
+export const siri = D => 495 / D - 450;                                                          // Siri 1961
+export const jp3Men = (S, age) => 1.10938 - 0.0008267 * S + 0.0000016 * S * S - 0.0002574 * age; // dada+abdomen+paha
+export const jpw3Women = (S, age) => 1.0994921 - 0.0009929 * S + 0.0000023 * S * S - 0.0001392 * age; // triseps+suprailiaka+paha
+// Durnin-Womersley 1974: [usia bawah, usia atas, C, M]
+export const DW = {
+  M: [[17, 19, 1.1620, 0.0630], [20, 29, 1.1631, 0.0632], [30, 39, 1.1422, 0.0544], [40, 49, 1.1620, 0.0700], [50, 72, 1.1715, 0.0779]],
+  F: [[16, 19, 1.1549, 0.0678], [20, 29, 1.1599, 0.0717], [30, 39, 1.1423, 0.0632], [40, 49, 1.1333, 0.0612], [50, 68, 1.1339, 0.0645]],
+};
+export function dwRow(age, sex) { const t = DW[sex]; return t.find(r => age >= r[0] && age <= r[1]) || (age > t[t.length - 1][1] ? t[t.length - 1] : t[0]); }
+export const dwDensity = (S4, age, sex) => { const r = dwRow(age, sex); return r[2] - r[3] * Math.log10(S4); };
+export const hastutiS4 = (S4, age) => 7.579 + 0.237 * S4 + 0.073 * age;                           // Hastuti 2013, pria
+export const hastutiAbd = (abd, tri, age) => 8.000 + 0.402 * abd + 0.486 * tri + 0.059 * age;     // Hastuti 2013, pria
+export const ffmFrom = (w, pct) => w * (1 - pct / 100);
+export const targetWeight = (ffm, pct) => ffm / (1 - pct / 100);
+// Heath-Carter, persamaan desimal (Carter 2002); komponen ≤0 diberi 0,1
+const floor01 = x => (x <= 0 ? 0.1 : x);
+export function endomorphy(tri, sub, ss, hCm) { const X = (tri + sub + ss) * (170.18 / hCm); return floor01(-0.7182 + 0.1451 * X - 0.00068 * X * X + 0.0000014 * X ** 3); }
+export function mesomorphy(hum, fem, armG, triMm, calfG, calfMm, hCm) {
+  const CAG = armG - triMm / 10, CCG = calfG - calfMm / 10;
+  return floor01(0.858 * hum + 0.601 * fem + 0.188 * CAG + 0.161 * CCG - 0.131 * hCm + 4.5);
+}
+export const hwr = (hCm, w) => hCm / Math.cbrt(w);
+export function ectomorphy(h) { if (h >= 40.75) return floor01(0.732 * h - 28.58); if (h > 38.25) return floor01(0.463 * h - 17.63); return 0.1; }
+export const somatoXY = (en, me, ec) => ({ x: ec - en, y: 2 * me - (en + ec) });
+
+// ================= Modul 10 — sweat rate =================
+export const sweatLoss = (pre, post, fluidL, urineL) => pre - post + fluidL - urineL;  // L (1 kg ≈ 1 L)
+export const sweatRate = (lossL, hours) => lossL / hours;
+export const bmChangePct = (pre, post) => (pre - post) / pre * 100;

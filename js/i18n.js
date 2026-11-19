@@ -5,12 +5,12 @@ export const MODULES = [
   { id: 'm2',  icon: 'activity', ready: true,  title: { id: 'VO₂max lapangan', en: 'Field VO₂max' },          cat: { id: 'Kardio', en: 'Cardio' }, kw: 'cooper rockport beep shuttle léger leger 2,4 km 2.4 km step test queens ymca harvard yo-yo 30-15 ift 6mwt jalan 6 menit' },
   { id: 'm3',  icon: 'dumbbell', ready: true,  title: { id: 'Kekuatan & 1RM', en: 'Strength & 1RM' },         cat: { id: 'Kekuatan', en: 'Strength' }, kw: '1rm epley brzycki %1rm repetisi handgrip genggam sit-to-stand sts awgs sarkopenia sarcopenia' },
   { id: 'm4',  icon: 'food',     ready: true,  title: { id: 'Energi & makro', en: 'Energy & macros' },        cat: { id: 'Nutrisi', en: 'Nutrition' }, kw: 'bmr rmr tdee pal ten haaf mifflin harris cunningham kalori kcal karbohidrat protein lemak makro energy availability ea reds' },
-  { id: 'm5',  icon: 'ruler',    ready: false, title: { id: 'Skinfold & %lemak', en: 'Skinfold & %fat' },     cat: { id: 'Komposisi', en: 'Composition' } },
+  { id: 'm5',  icon: 'ruler',    ready: true,  title: { id: 'Skinfold & %lemak', en: 'Skinfold & %fat' },     cat: { id: 'Komposisi', en: 'Composition' }, kw: 'skinfold lipatan kulit lemak body fat hastuti durnin womersley jackson pollock siri ffm somatotipe somatotype heath carter endomorf mesomorf ektomorf' },
   { id: 'm6',  icon: 'flask',    ready: false, title: { id: 'RER & substrat', en: 'RER & substrate' },        cat: { id: 'Metabolik', en: 'Metabolic' } },
   { id: 'm7',  icon: 'pill',     ready: false, title: { id: 'Dosis suplemen', en: 'Supplement dosing' },      cat: { id: 'Nutrisi', en: 'Nutrition' } },
   { id: 'm8',  icon: 'body',     ready: true,  title: { id: 'Antropometri dasar', en: 'Basic anthropometry' }, cat: { id: 'Komposisi', en: 'Composition' }, kw: 'imt bmi lingkar pinggang panggul waist hip whtr whr obesitas obesity pnpk' },
   { id: 'm9',  icon: 'balance',  ready: false, title: { id: 'LSI & rasio H:Q', en: 'LSI & H:Q ratio' },       cat: { id: 'Rehabilitasi', en: 'Rehab' } },
-  { id: 'm10', icon: 'drop',     ready: false, title: { id: 'Sweat rate', en: 'Sweat rate' },                 cat: { id: 'Hidrasi', en: 'Hydration' } },
+  { id: 'm10', icon: 'drop',     ready: true,  title: { id: 'Sweat rate', en: 'Sweat rate' },                 cat: { id: 'Hidrasi', en: 'Hydration' }, kw: 'keringat sweat hidrasi hydration dehidrasi cairan eah hiponatremia hyponatremia minum' },
 ];
 
 export const T = {
@@ -330,6 +330,8 @@ export const GLOSSARY = [
   ['reds', 'REDs', 'Sindrom gangguan kesehatan dan performa akibat low energy availability.', 'Syndrome of impaired health and performance caused by low energy availability.'],
   ['rer', 'RER', 'Rasio VCO₂ terhadap VO₂ yang diukur di mulut.', 'Ratio of VCO₂ to VO₂ measured at the mouth.'],
   ['rmr', 'RMR/BMR', 'Energi untuk fungsi dasar tubuh saat istirahat.', 'Energy used for basic body functions at rest.'],
+  ['somato', 'Somatotipe Heath-Carter / Heath-Carter somatotype', 'Deskripsi bentuk tubuh dalam tiga angka: endomorfi (lemak relatif), mesomorfi (kekokohan otot-rangka relatif), dan ektomorfi (linearitas relatif).', 'Three-number description of physique: endomorphy (relative fatness), mesomorphy (relative musculoskeletal robustness) and ectomorphy (relative linearity).'],
+  ['hwr', 'HWR', 'Height-weight ratio: tinggi badan (cm) dibagi akar pangkat tiga berat badan (kg); dipakai untuk ektomorfi.', 'Height-weight ratio: height (cm) divided by the cube root of body mass (kg); used for ectomorphy.'],
   ['skinfold', 'Skinfold', 'Tebal lipatan kulit dan lemak bawah kulit yang diukur dengan kaliper.', 'Thickness of a fold of skin and subcutaneous fat, measured with a caliper.'],
   ['steady', 'Steady state', 'Kondisi tunak saat konsumsi oksigen stabil pada beban tetap.', 'Condition in which oxygen uptake is stable at a constant workload.'],
   ['sweat', 'Sweat rate', 'Volume keringat yang hilang per jam.', 'Volume of sweat lost per hour.'],

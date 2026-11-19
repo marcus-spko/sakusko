@@ -11,6 +11,8 @@ const blank = () => ({
   m3: { test: 'rm', v: {}, basis: 'brzycki', ex: 'general' },
   m4: { v: {}, basis: 'th', cho: '' },
   m8: { v: {} },
+  m5: { v: {}, tab: 'fat', eq: '' },
+  m10: { v: {} },
   skr: { part: 'acsm', active: '', known: '', symp: '', intent: '', cleared: '', parq: '', aha: {} },
   updatedAt: 0,
 });
@@ -24,6 +26,8 @@ function assign(src) {
   S.m2 = { ...b.m2, ...(src.m2 || {}), v: { ...((src.m2 || {}).v || {}) } };
   S.m3 = { ...b.m3, ...(src.m3 || {}), v: { ...((src.m3 || {}).v || {}) } };
   S.m4 = { ...b.m4, ...(src.m4 || {}), v: { ...((src.m4 || {}).v || {}) } };
+  S.m5 = { ...b.m5, ...(src.m5 || {}), v: { ...((src.m5 || {}).v || {}) } };
+  S.m10 = { ...b.m10, ...(src.m10 || {}), v: { ...((src.m10 || {}).v || {}) } };
   S.m8 = { ...b.m8, ...(src.m8 || {}), v: { ...((src.m8 || {}).v || {}) } };
   S.skr = { ...b.skr, ...(src.skr || {}), aha: { ...((src.skr || {}).aha || {}) } };
   S.updatedAt = src.updatedAt || 0;
@@ -31,7 +35,7 @@ function assign(src) {
 
 export function isEmpty() {
   const noVals = o => Object.values(o.v).every(v => v === '');
-  return Object.values(S.base).every(v => v === '') && S.m1.hrRest === '' && S.m1.hrMeas === '' && noVals(S.m2) && noVals(S.m3) && noVals(S.m4) && noVals(S.m8) && !S.m4.cho
+  return Object.values(S.base).every(v => v === '') && S.m1.hrRest === '' && S.m1.hrMeas === '' && noVals(S.m2) && noVals(S.m3) && noVals(S.m4) && noVals(S.m8) && noVals(S.m5) && noVals(S.m10) && !S.m4.cho
     && ['active', 'known', 'symp', 'intent', 'cleared', 'parq'].every(k => S.skr[k] === '') && Object.keys(S.skr.aha).length === 0;
 }
 
@@ -52,7 +56,7 @@ export function save() {
   S.updatedAt = Date.now();
   try {
     if (isEmpty()) localStorage.removeItem(KEY);
-    else localStorage.setItem(KEY, JSON.stringify({ base: S.base, m1: S.m1, m2: S.m2, m3: S.m3, m4: S.m4, m8: S.m8, skr: S.skr, updatedAt: S.updatedAt }));
+    else localStorage.setItem(KEY, JSON.stringify({ base: S.base, m1: S.m1, m2: S.m2, m3: S.m3, m4: S.m4, m8: S.m8, m5: S.m5, m10: S.m10, skr: S.skr, updatedAt: S.updatedAt }));
   } catch (e) { /* penyimpanan tidak tersedia: data tetap di memori */ }
 }
 

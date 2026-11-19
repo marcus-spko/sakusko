@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import {
   hrmax, hrmaxApplies, acsmZones, vo2Cooper, vo2Rockport, vo2Leger, legerSpeed, vo2Run24, vo2Queens, harvardLong, harvardShort,
-  vo2YoYo1, vo2Ift, sixMwtPred, rmrTenHaaf, rmrTenHaafFfm, rmrMifflin, rmrHarrisRev, rmrCunningham, energyAvail, bmi, bmiCat, centralObese, whtr, whr, whrHigh, rmEpley, rmBrzycki, NUZZO, round05, gripCut, stsCut,
+  vo2YoYo1, vo2Ift, sixMwtPred, siri, jp3Men, jpw3Women, dwDensity, dwRow, hastutiS4, hastutiAbd, ffmFrom, targetWeight, endomorphy, mesomorphy, hwr, ectomorphy, somatoXY, sweatLoss, sweatRate, bmChangePct, rmrTenHaaf, rmrTenHaafFfm, rmrMifflin, rmrHarrisRev, rmrCunningham, energyAvail, bmi, bmiCat, centralObese, whtr, whr, whrHigh, rmEpley, rmBrzycki, NUZZO, round05, gripCut, stsCut,
 } from '../js/formulas.js';
 import { acsmResult } from '../js/screening.js';
 
@@ -71,6 +71,29 @@ check('Batas IMT: 22,9 normal; 23,0 BB lebih; 24,9 BB lebih; 25,0 obesitas I; 30
 check('Lingkar pinggang 88 cm pria: bukan obesitas sentral; 91 cm: ya; wanita 81 cm: ya', !centralObese(88, true) && centralObese(91, true) && centralObese(81, false) && !centralObese(80, false));
 check('WHtR 88/172 = 0,512 (≥0,5)', near(whtr(88, 172), 0.512, 0.001));
 check('WHR 88/98 = 0,898 → di bawah 0,90 (pria); wanita ≥0,85 → risiko', near(whr(88, 98), 0.898, 0.001) && !whrHigh(whr(88, 98), true) && whrHigh(whr(88, 98), false));
+
+// Modul 5 — contoh Kartu Spesifikasi v0.1.1 (data fiktif)
+check('Jackson-Pollock pria 30 th, S 47 → D 1,06634 → 14,2%', near(jp3Men(47, 30), 1.06634, 0.00001) && near(siri(jp3Men(47, 30)), 14.2, 0.05));
+check('FFM 75 kg pada 14,2% = 64,3; BB target 12% = 73,1', near(ffmFrom(75, siri(jp3Men(47, 30))), 64.3, 0.05) && near(targetWeight(ffmFrom(75, siri(jp3Men(47, 30))), 12), 73.1, 0.05));
+check('Durnin-Womersley pria 30 th Σ4 46 → D 1,05175 → 20,6%', near(dwDensity(46, 30, 'M'), 1.05175, 0.00001) && near(siri(dwDensity(46, 30, 'M')), 20.6, 0.05));
+check('Durnin-Womersley: baris usia 20–29 pria C 1,1631 M 0,0632; >72 th memakai baris 50–72', dwRow(25, 'M')[2] === 1.1631 && dwRow(80, 'M')[0] === 50);
+check('Hastuti Σ4 46 mm, 30 th = 20,7%', near(hastutiS4(46, 30), 20.67, 0.01));
+check('Hastuti abdomen 20 + triseps 10, 30 th = 22,5%', near(hastutiAbd(20, 10, 30), 8 + 8.04 + 4.86 + 1.77, 0.001));
+check('Jackson-Pollock-Ward wanita 28 th S 63 = 25,0%', near(siri(jpw3Women(63, 28)), 25.0, 0.05));
+// Heath-Carter — subjek 573 manual Carter 2002 (1,6-5,4-3,2)
+check('Endomorfi Σ3 18,1 mm, TB 178 = 1,6', near(endomorphy(18.1, 0, 0, 178), 1.6, 0.05));
+check('Mesomorfi HB 7,20, FB 9,75, CAG 33,3, CCG 37,1, TB 178 = 5,4', near(mesomorphy(7.20, 9.75, 33.3, 0, 37.1, 0, 178), 5.45, 0.05));
+check('Ektomorfi HWR 43,4 = 3,2', near(ectomorphy(43.4), 3.19, 0.01));
+check('Ektomorfi cabang tengah HWR 39,5 = 0,66; HWR ≤38,25 = 0,1', near(ectomorphy(39.5), 0.6585, 0.001) && ectomorphy(38) === 0.1);
+check('Komponen ≤0 diberi 0,1', endomorphy(0, 0, 0, 178) === 0.1);
+check('Lingkar terkoreksi: lingkar lengan − triseps/10', near(mesomorphy(7.2, 9.75, 34.3, 10, 38.1, 10, 178), mesomorphy(7.2, 9.75, 33.3, 0, 37.1, 0, 178), 1e-9));
+check('HWR 178 cm / ∛70 kg = 43,2', near(hwr(178, 70), 43.19, 0.01));
+check('Koordinat somatochart 1,6-5,4-3,2 → X 1,6; Y 6,0', near(somatoXY(1.6, 5.4, 3.2).x, 1.6, 1e-9) && near(somatoXY(1.6, 5.4, 3.2).y, 6.0, 1e-9));
+// Modul 10 — contoh Kartu Spesifikasi v0.1.1
+check('Sweat: 70,0 → 68,9 kg, minum 0,8 L, urine 0,2 L → 1,70 L', near(sweatLoss(70, 68.9, 0.8, 0.2), 1.70, 0.001));
+check('Sweat rate 1,70 L / 1,5 jam = 1,13 L/jam', near(sweatRate(1.7, 1.5), 1.133, 0.001));
+check('Kehilangan BB 1,57%', near(bmChangePct(70, 68.9), 1.571, 0.001));
+check('BB naik → perubahan negatif (tanda minum berlebihan)', bmChangePct(70, 70.4) < 0);
 
 // Skrining — algoritma ACSM (Riebe 2015): 6 kotak + pengecualian clearance ≤12 bulan
 const A = (active, known, symp, intent = '', cleared = '') => acsmResult({ active, known, symp, intent, cleared });
