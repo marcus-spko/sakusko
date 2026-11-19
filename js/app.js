@@ -302,7 +302,7 @@ function skrAcsm() {
   let extra = '';
   if (acsmNeedIntent()) {
     extra += `<div class="field"><span class="qtext" id="q-intent">${esc(ACSM_Q_INTENT.label[lang])}</span>
-      <div class="seg" role="group" aria-labelledby="q-intent">${ACSM_Q_INTENT.opts.map(([k, l]) => `<button type="button" data-yn="intent" data-v="${k}" aria-pressed="${a.intent === k}">${esc(l[lang])}</button>`).join('')}</div></div>`;
+      <div class="seg" role="group" aria-labelledby="q-intent">${ACSM_Q_INTENT.opts.map(([k, l]) => `<button type="button" data-yn="intent" data-v="${k}" aria-pressed="${a.intent === k}">${esc(l[lang])}</button>`).join('')}</div><span class="hint">${esc(ACSM_Q_INTENT.hint[lang])}</span></div>`;
     if (a.intent === 'vig') extra += qField(ACSM_Q_CLEAR, a.cleared);
   }
   const icon = r ? (r.level === 'ok' ? 'check' : 'alert') : 'info';

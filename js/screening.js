@@ -22,11 +22,12 @@ export const ACSM_Q = [
   { k: 'active', def: 'skrActive', label: { id: 'Rutin berolahraga saat ini?', en: 'Currently exercising regularly?' },
     hint: { id: 'Latihan terencana intensitas sedang ≥30 menit, ≥3 hari/minggu, selama ≥3 bulan terakhir.', en: 'Planned moderate-intensity exercise ≥30 min, ≥3 days/week, for the last ≥3 months.' } },
   { k: 'known', def: 'skrKmr', label: { id: 'Ada penyakit kardiovaskular, metabolik, atau ginjal yang sudah diketahui?', en: 'Known cardiovascular, metabolic or renal disease?' },
-    hint: { id: 'Penyakit jantung, pembuluh darah perifer, atau serebrovaskular; diabetes tipe 1 atau 2; penyakit ginjal.', en: 'Cardiac, peripheral vascular or cerebrovascular disease; type 1 or 2 diabetes; renal disease.' } },
+    hint: { id: 'Penyakit jantung, pembuluh darah perifer, atau serebrovaskular; diabetes tipe 1 atau 2; penyakit ginjal. Penyakit paru tidak otomatis memerlukan clearance, tetapi perhatikan tanda dan gejala kardiovaskular.', en: 'Cardiac, peripheral vascular or cerebrovascular disease; type 1 or 2 diabetes; renal disease. Pulmonary disease does not automatically require clearance, but watch for cardiovascular signs and symptoms.' } },
   { k: 'symp', def: 'skrSymp', label: { id: 'Ada tanda atau gejala penyakit tersebut?', en: 'Signs or symptoms of such disease?' },
-    hint: { id: 'Tekan ikon i untuk daftar tanda dan gejala.', en: 'Tap the i icon for the list of signs and symptoms.' } },
+    hint: { id: 'Saat istirahat atau aktivitas. Tekan ikon i untuk daftar tanda dan gejala.', en: 'At rest or during activity. Tap the i icon for the list of signs and symptoms.' } },
 ];
 export const ACSM_Q_INTENT = { k: 'intent', label: { id: 'Intensitas latihan yang diinginkan', en: 'Desired exercise intensity' },
+  hint: { id: 'Ringan 30–<40% HRR (2–<3 MET, RPE 9–11); sedang 40–<60% HRR (3–<6 MET, RPE 12–13); berat ≥60% HRR (≥6 MET, RPE ≥14).', en: 'Light 30–<40% HRR (2–<3 METs, RPE 9–11); moderate 40–<60% HRR (3–<6 METs, RPE 12–13); vigorous ≥60% HRR (≥6 METs, RPE ≥14).' },
   opts: [['mod', { id: 'Ringan–sedang', en: 'Light–moderate' }], ['vig', { id: 'Berat', en: 'Vigorous' }]] };
 export const ACSM_Q_CLEAR = { k: 'cleared', label: { id: 'Sudah mendapat medical clearance dalam 12 bulan terakhir dan gejala tidak berubah?', en: 'Medically cleared within the last 12 months with no change in symptoms?' } };
 
@@ -35,8 +36,8 @@ export function acsmResult(a) {
   if (!a.active || !a.symp) return null;
   if (a.symp === 'y') {
     if (a.active === 'y') return { cell: 6, level: 'stop',
-      id: 'Hentikan latihan dan lakukan evaluasi medis (medical clearance) sebelum kembali berlatih.',
-      en: 'Stop exercising and obtain medical clearance before resuming.' };
+      id: 'Hentikan latihan dan lakukan evaluasi medis (medical clearance) sebelum kembali berlatih dengan intensitas apa pun. Setelah clearance, boleh kembali berlatih dan naik bertahap sesuai toleransi.',
+      en: 'Stop exercising and obtain medical clearance before resuming exercise of any intensity. After clearance, exercise may resume and progress gradually as tolerated.' };
     return { cell: 3, level: 'warn',
       id: 'Medical clearance dianjurkan sebelum mulai berlatih. Setelah clearance: mulai intensitas ringan–sedang, naik bertahap sesuai toleransi.',
       en: 'Medical clearance is recommended before starting. After clearance: begin at light–moderate intensity and progress as tolerated.' };
@@ -67,8 +68,8 @@ export function acsmResult(a) {
     en: 'Medical clearance is recommended before progressing to vigorous intensity. Moderate intensity may continue.' };
 }
 export const ACSM_ALWAYS = {
-  id: 'Bila sewaktu-waktu muncul tanda atau gejala, hentikan latihan dan lakukan evaluasi medis. Algoritma ini tidak lagi memakai hitungan faktor risiko.',
-  en: 'If signs or symptoms appear at any time, stop exercising and seek medical evaluation. This algorithm no longer uses risk-factor counts.',
+  id: 'Algoritma ini untuk latihan aerobik. Bila sewaktu-waktu muncul tanda atau gejala, hentikan latihan dan lakukan evaluasi medis. Hitungan faktor risiko tidak lagi dipakai untuk memutuskan rujukan, tetapi tetap penting untuk pencegahan penyakit.',
+  en: 'This algorithm is for aerobic exercise. If signs or symptoms appear at any time, stop exercising and seek medical evaluation. Risk-factor counts no longer decide referral, but remain important for disease prevention.',
 };
 
 // ---------- B. PAR-Q+: catatan hasil (bukan formulir) ----------
@@ -80,8 +81,8 @@ export const PARQ_OUT = [
 
 // ---------- C. Daftar 14 elemen AHA/ACC ----------
 export const AHA14 = [
-  { g: 'p', k: 'p1', id: 'Nyeri atau rasa tidak nyaman di dada saat aktivitas fisik', en: 'Chest pain or discomfort on exertion' },
-  { g: 'p', k: 'p2', id: 'Pingsan atau hampir pingsan tanpa sebab jelas, terutama saat atau setelah aktivitas', en: 'Unexplained fainting or near-fainting, especially during or after exertion' },
+  { g: 'p', k: 'p1', id: 'Nyeri, rasa tidak nyaman, sesak, atau tertekan di dada terkait aktivitas fisik', en: 'Chest pain, discomfort, tightness or pressure related to exertion' },
+  { g: 'p', k: 'p2', id: 'Pingsan atau hampir pingsan tanpa sebab jelas dan bukan vasovagal, terutama saat atau setelah aktivitas', en: 'Unexplained fainting or near-fainting, not vasovagal, especially during or after exertion' },
   { g: 'p', k: 'p3', id: 'Sesak, lelah, atau berdebar berlebihan saat aktivitas tanpa sebab jelas', en: 'Excessive, unexplained breathlessness, fatigue or palpitations with exercise' },
   { g: 'p', k: 'p4', id: 'Pernah diketahui ada bising jantung', en: 'Previously known heart murmur' },
   { g: 'p', k: 'p5', id: 'Riwayat tekanan darah tinggi', en: 'History of high blood pressure' },
@@ -89,10 +90,10 @@ export const AHA14 = [
   { g: 'p', k: 'p7', id: 'Pernah diminta dokter menjalani pemeriksaan jantung', en: 'Previous heart testing ordered by a physician' },
   { g: 'f', k: 'f1', id: 'Kerabat meninggal mendadak atau dini (<50 tahun) karena penyakit jantung', en: 'Relative with sudden or premature (<50 y) death from heart disease' },
   { g: 'f', k: 'f2', id: 'Kerabat dekat <50 tahun dengan disabilitas karena penyakit jantung', en: 'Close relative <50 y disabled by heart disease' },
-  { g: 'f', k: 'f3', id: 'Keluarga dengan kardiomiopati, sindrom QT panjang atau kanalopati lain, sindrom Marfan, atau aritmia bermakna', en: 'Family history of cardiomyopathy, long-QT or other channelopathy, Marfan syndrome, or significant arrhythmia' },
-  { g: 'e', k: 'e1', id: 'Bising jantung pada auskultasi', en: 'Heart murmur on auscultation' },
+  { g: 'f', k: 'f3', id: 'Keluarga dengan kardiomiopati hipertrofik atau dilatasi, sindrom QT panjang atau kanalopati lain, sindrom Marfan, aritmia bermakna, atau kelainan jantung genetik lain yang diketahui', en: 'Family history of hypertrophic or dilated cardiomyopathy, long-QT or other channelopathy, Marfan syndrome, significant arrhythmia, or other known genetic heart condition' },
+  { g: 'e', k: 'e1', id: 'Bising jantung yang kemungkinan organik, bukan innocent (auskultasi berbaring dan berdiri, atau dengan manuver Valsalva)', en: 'Heart murmur likely organic rather than innocent (auscultate supine and standing, or with Valsalva)' },
   { g: 'e', k: 'e2', id: 'Denyut femoral lemah atau terlambat (curiga koarktasio aorta)', en: 'Weak or delayed femoral pulses (possible aortic coarctation)' },
   { g: 'e', k: 'e3', id: 'Tanda fisik sindrom Marfan', en: 'Physical stigmata of Marfan syndrome' },
-  { g: 'e', k: 'e4', id: 'Tekanan darah brakialis (posisi duduk) tinggi', en: 'Elevated brachial blood pressure (seated)' },
+  { g: 'e', k: 'e4', id: 'Tekanan darah brakialis (posisi duduk, sebaiknya kedua lengan) tinggi', en: 'Elevated brachial blood pressure (seated, preferably both arms)' },
 ];
 export const AHA_GROUPS = { p: { id: 'Riwayat Pribadi', en: 'Personal History' }, f: { id: 'Riwayat Keluarga', en: 'Family History' }, e: { id: 'Pemeriksaan Fisik', en: 'Physical Examination' } };
