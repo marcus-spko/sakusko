@@ -3,6 +3,7 @@ import { HRMAX, HRMAX_ORDER, hrmax, hrmaxApplies, acsmZones, karvonen, LIMITS, r
 import { TESTS, REF, RM_INFO } from './tests.js';
 import { MODULES, T, M1_FORMULAS, KARVONEN_REF, GLOSSARY, ABOUT } from './i18n.js';
 import { S, load, save, clear, expireIfDue, expiresAt, isEmpty } from './session.js';
+import { startTitleCase } from './titlecase.js';
 
 // ---------- Ikon (garis, tanpa emoji) ----------
 const ICONS = {
@@ -44,6 +45,7 @@ if (loaded === 'expired') UI.flash = 'expired';
 
 const t = () => T[lang];
 const app = document.getElementById('app');
+startTitleCase();
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const num = (v, d = 0) => Number(v).toLocaleString(lang === 'id' ? 'id-ID' : 'en-GB', { minimumFractionDigits: d, maximumFractionDigits: d });
 const dec = v => (Number.isInteger(+v.toFixed(2)) ? num(v, 0) : num(v, 1));
