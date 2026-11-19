@@ -15,8 +15,8 @@ function capWord(w, first) {
   const low = core.toLowerCase();
   if (UNITS.has(low)) return w;
   if (!first && SMALL.has(low) && pre === '') return w;
-  const parts = core.split('-').map((p, i) => (i > 0 && SMALL.has(p) ? p : p.charAt(0).toUpperCase() + p.slice(1)));
-  return pre + parts.join('-') + post;
+  const parts = core.split(/([-–])/).map((p, i) => (p === '-' || p === '–' || (i > 0 && SMALL.has(p)) ? p : p.charAt(0).toUpperCase() + p.slice(1)));
+  return pre + parts.join('') + post;
 }
 export function titleCase(str) {
   let first = true;

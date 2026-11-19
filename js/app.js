@@ -4,6 +4,7 @@ import { TESTS, REF, RM_INFO } from './tests.js';
 import { MODULES, T, M1_FORMULAS, KARVONEN_REF, GLOSSARY, ABOUT } from './i18n.js';
 import { S, load, save, clear, expireIfDue, expiresAt, isEmpty } from './session.js';
 import { startTitleCase } from './titlecase.js';
+import { SKR_REF, LINKS, ACSM_Q, ACSM_Q_INTENT, ACSM_Q_CLEAR, acsmResult, ACSM_ALWAYS, PARQ_OUT, AHA14, AHA_GROUPS } from './screening.js';
 
 // ---------- Ikon (garis, tanpa emoji) ----------
 const ICONS = {
@@ -27,6 +28,10 @@ const ICONS = {
   lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
   chev: '<path d="m6 9 6 6 6-6"/>',
   trash: '<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/>',
+  shield: '<path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6Z"/><path d="m9 12 2 2 4-4"/>',
+  check: '<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',
+  file: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z"/><path d="M14 3v6h6"/>',
+  link: '<path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/>',
   list: '<path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/>',
 };
 const svg = (name, color = 'currentColor', size = 20, sw = 2) =>
@@ -85,15 +90,24 @@ function homeTiles() {
       <div class="tile-top"><span class="tile-ic">${svg(m.icon, '#C2410C')}</span>
       ${m.ready ? `<span class="tile-num">${String(m.n).padStart(2, '0')}</span>` : `<span class="soon">${esc(t().soon)}</span>`}</div>
       <div><div class="tile-title">${esc(m.title[lang])}</div><div class="tile-cat">${esc(m.cat[lang])}</div></div></a>`).join('');
-  return tiles || `<p class="empty">${esc(t().noResult)}</p>`;
+  return tiles || (skrTile() ? '' : `<p class="empty">${esc(t().noResult)}</p>`);
 }
-function renderHomeTiles() { const g = document.getElementById('tiles'); if (g) g.innerHTML = homeTiles(); }
+const SKR_KW = 'skrining screening prapartisipasi preparticipation par-q parq acsm aha 14 elemen ppe clearance kelaikan';
+function skrTile() {
+  const q = query.trim().toLowerCase();
+  if (q && ![t().skrTitle, SKR_KW].some(x => x.toLowerCase().includes(q))) return '';
+  return `<a class="tile tile-wide" href="#/m/skr"><span class="tile-ic">${svg('shield', '#C2410C')}</span>
+    <div style="flex:1;min-width:0"><div class="tile-num">${esc(t().skrStart.toUpperCase())}</div><div class="tile-title">${esc(t().skrTitle)}</div><div class="tile-cat">${esc(t().skrTileSub)}</div></div>
+    <span style="transform:rotate(-90deg);display:flex">${svg('chev', '#9A3412')}</span></a>`;
+}
+function renderHomeTiles() { const g = document.getElementById('tiles'); if (g) g.innerHTML = homeTiles(); const f = document.getElementById('skrSlot'); if (f) f.innerHTML = skrTile(); }
 function renderHome() {
   const flash = UI.flash ? `<div class="note" role="status">${svg('info', '#9A3412')}<span>${esc(UI.flash === 'expired' ? t().expiredMsg : t().clearedMsg)}</span></div>` : '';
   UI.flash = '';
   app.innerHTML = `${brandHeader()}<main class="main">${flash}${sessionCard()}
     <label class="search">${svg('search', '#5C4F45')}<span class="sr-only">${esc(t().search)}</span>
       <input type="search" id="q" value="${esc(query)}" placeholder="${esc(t().searchPh)}" autocomplete="off"></label>
+    <div id="skrSlot">${skrTile()}</div>
     <div class="row-between"><h2 class="h2">${esc(t().calculators)}</h2><span class="muted">${esc(t().modulesCount(MODULES.length))}</span></div>
     <div class="grid" id="tiles">${homeTiles()}</div></main>${nav('calc')}`;
 }
@@ -271,6 +285,112 @@ function refreshM1(keepInputs = false) {
 }
 
 
+
+// ---------- Skrining prapartisipasi ----------
+const ynSeg = (attr, key, val, labelId) => `<div class="seg" role="group" aria-labelledby="${labelId}">
+  <button type="button" data-${attr}="${key}" data-v="y" aria-pressed="${val === 'y'}">${esc(t().yes)}</button>
+  <button type="button" data-${attr}="${key}" data-v="n" aria-pressed="${val === 'n'}">${esc(t().no)}</button></div>`;
+function qField(q, val) {
+  const lid = `q-${q.k}`;
+  return `<div class="field"><div class="lbl-row"><span class="qtext" id="${lid}">${esc(q.label[lang])}</span>${q.def ? ibtn(q.def, q.label[lang]) : ''}</div>
+    ${ynSeg('yn', q.k, val, lid)}${q.hint ? `<span class="hint">${esc(q.hint[lang])}</span>` : ''}</div>`;
+}
+function acsmNeedIntent() { const a = S.skr; return a.active === 'y' && a.known === 'y' && a.symp === 'n'; }
+function skrAcsm() {
+  const a = S.skr, r = acsmResult(a);
+  const qs = ACSM_Q.map(q => qField(q, a[q.k])).join('');
+  let extra = '';
+  if (acsmNeedIntent()) {
+    extra += `<div class="field"><span class="qtext" id="q-intent">${esc(ACSM_Q_INTENT.label[lang])}</span>
+      <div class="seg" role="group" aria-labelledby="q-intent">${ACSM_Q_INTENT.opts.map(([k, l]) => `<button type="button" data-yn="intent" data-v="${k}" aria-pressed="${a.intent === k}">${esc(l[lang])}</button>`).join('')}</div></div>`;
+    if (a.intent === 'vig') extra += qField(ACSM_Q_CLEAR, a.cleared);
+  }
+  const icon = r ? (r.level === 'ok' ? 'check' : 'alert') : 'info';
+  const res = !r ? `<p class="empty" style="margin:0">${esc(t().answerAll)}</p>`
+    : `<div class="note ${r.level === 'stop' ? 'danger' : ''}" role="status">${svg(icon, r.level === 'stop' ? '#B91C1C' : '#9A3412')}<span>${esc(r[lang])}</span></div>`;
+  return `<section class="card" aria-labelledby="h-q"><h2 class="h2" id="h-q">${esc(t().questions)}</h2>
+      <div style="display:flex;flex-direction:column;gap:14px">${qs}${extra}</div></section>
+    <section class="card" aria-labelledby="h-rec" style="margin-top:14px"><div class="lbl-row"><h2 class="h2" id="h-rec">${esc(t().recommendation)}</h2>${ibtn('clearance', 'Medical clearance')}</div>
+      ${res}
+      <div class="note">${svg('info', '#9A3412')}<span>${esc(ACSM_ALWAYS[lang])}</span></div>
+      <span class="hint">${esc(t().popLbl)}: ${esc(t().acsmPop)}</span>
+      ${fxBtn('acsm', true)}${UI.mfx.has('acsm') ? `<div class="fbox" id="mfx-acsm"><span class="k">${esc(t().fSource)}</span>${skrRefs(['riebe', 'getp'])}<span class="hint">${esc(t().doiNote)}</span></div>` : ''}
+    </section>`;
+}
+const skrRefs = keys => keys.map(k => `<span class="r">${esc(SKR_REF[k].ref)}${SKR_REF[k].doi ? ` <a href="https://doi.org/${SKR_REF[k].doi}" target="_blank" rel="noopener">doi:${SKR_REF[k].doi}</a>` : ''}</span>`).join('');
+const linkBtn = (href, icon, label, ext = false) => `<a class="btn-sec" href="${href}" target="_blank" rel="noopener">${svg(icon, '#9A3412', 18)}<span>${esc(label)}</span></a>${ext ? '' : ''}`;
+function skrParq() {
+  return `<section class="card" aria-labelledby="h-pq"><h2 class="h2" id="h-pq">${esc(t().parqHead)}</h2>
+      ${linkBtn(LINKS.parq25, 'file', t().parqOpen25)}${linkBtn(LINKS.parqId, 'file', t().parqOpenId)}${linkBtn(LINKS.eparmed, 'link', t().parqEpar)}
+      <div class="note">${svg('alert', '#9A3412')}<span>${esc(t().parqRules)}</span></div>
+      <span class="hint">${esc(t().parqIdNote)}</span>
+      ${fxBtn('parq', true)}${UI.mfx.has('parq') ? `<div class="fbox" id="mfx-parq"><span class="k">${esc(t().fSource)}</span>${skrRefs(['parq', 'parqId'])}<span class="hint">${esc(t().doiNote)}</span></div>` : ''}</section>
+    <section class="card" aria-labelledby="h-pr" style="margin-top:14px"><div class="lbl-row"><h2 class="h2" id="h-pr">${esc(t().parqRecord)}</h2><span class="opt">${esc(t().optional)}</span></div>
+      <div class="optlist" role="group" aria-labelledby="h-pr">${PARQ_OUT.map(([k, l]) => `<button type="button" data-parq="${k}" aria-pressed="${S.skr.parq === k}">${esc(l[lang])}</button>`).join('')}</div>
+      <span class="hint">${esc(t().parqRecordHint)}</span></section>`;
+}
+function ahaState() {
+  const ans = S.skr.aha, answered = AHA14.filter(x => ans[x.k]).length, pos = AHA14.filter(x => ans[x.k] === 'y');
+  return { answered, pos, n: AHA14.length };
+}
+function skrAha() {
+  const st = ahaState();
+  const groups = Object.keys(AHA_GROUPS).map(g => `<section class="card" aria-labelledby="h-g${g}" style="margin-bottom:14px"><h2 class="h2" id="h-g${g}">${esc(AHA_GROUPS[g][lang])}</h2>
+      <div style="display:flex;flex-direction:column;gap:14px">${AHA14.filter(x => x.g === g).map(x => `<div class="field"><span class="qtext" id="q-${x.k}">${esc(x[lang])}</span>${ynSeg('aha', x.k, S.skr.aha[x.k] || '', `q-${x.k}`)}</div>`).join('')}</div></section>`).join('');
+  let res;
+  if (st.answered < st.n) res = `<p class="empty" style="margin:0">${esc(t().ahaIncomplete)}</p>`;
+  else if (st.pos.length) res = `<div class="note" role="status">${svg('alert', '#9A3412')}<span><b>${esc(t().ahaPos(st.pos.length))}.</b> ${esc(t().ahaPosNote)}</span></div>
+      <ul class="poslist">${st.pos.map(x => `<li>${esc(x[lang])}</li>`).join('')}</ul>`;
+  else res = `<div class="note" role="status">${svg('check', '#9A3412')}<span><b>${esc(t().ahaNone)}.</b> ${esc(t().ahaNoneNote)}</span></div>`;
+  return `${groups}
+    <section class="card" aria-labelledby="h-ah"><div class="lbl-row"><h2 class="h2" id="h-ah">${esc(t().result)}</h2>${ibtn('aha14', 'AHA')}</div>
+      <span class="sess-sum">${esc(t().ahaAnswered(st.answered, st.n))}</span>
+      ${st.answered < st.n ? `<button type="button" class="btn-sec" data-aharest>${svg('check', '#9A3412', 18)}<span>${esc(t().ahaRest)}</span></button>` : ''}
+      ${res}
+      <span class="hint">${esc(t().popLbl)}: ${esc(t().ahaPop)}</span>
+      ${linkBtn(LINKS.ppe, 'link', t().ppeLink)}
+      <span class="hint">${esc(t().ppeNote)}</span>
+      ${fxBtn('aha', true)}${UI.mfx.has('aha') ? `<div class="fbox" id="mfx-aha"><span class="k">${esc(t().fSource)}</span>${skrRefs(['maron', 'ppe'])}<span class="hint">${esc(t().doiNote)}</span></div>` : ''}
+    </section>`;
+}
+function skrCopy() {
+  const lines = [], a = S.skr, r = acsmResult(a);
+  if (r) {
+    const yn = v => (v === 'y' ? t().yes : t().no).toLowerCase();
+    const parts = ['active', 'known', 'symp'].filter(k => a[k] && !(k === 'known' && a.symp === 'y')).map(k => `${t().acsmAns[k]} ${yn(a[k])}`);
+    if (acsmNeedIntent() && a.intent) parts.push(`${t().acsmAns.intent} ${ACSM_Q_INTENT.opts.find(o => o[0] === a.intent)[1][lang].toLowerCase()}`);
+    if (acsmNeedIntent() && a.intent === 'vig' && a.cleared) parts.push(`${t().acsmAns.cleared} ${yn(a.cleared)}`);
+    lines.push(t().copyAcsm(parts.join('; '), r[lang]));
+  }
+  if (a.parq) lines.push(t().copyParq(PARQ_OUT.find(o => o[0] === a.parq)[1][lang]));
+  const st = ahaState();
+  if (st.answered === st.n) lines.push(t().copyAha(st.answered, st.n, st.pos.length ? `${t().ahaPos(st.pos.length)}: ${st.pos.map(x => x[lang]).join('; ')}` : t().ahaNone));
+  if (!lines.length) return null;
+  const refs = [r ? 'Riebe 2015' : '', a.parq ? 'PAR-Q+ 2025' : '', st.answered === st.n ? 'Maron (AHA/ACC) 2014' : ''].filter(Boolean).join('; ');
+  const body = [...lines, t().srcLine(refs), t().skrNote];
+  const bs = baseSummary();
+  const text = [t().copyHeaderMod(0, t().skrTitle, todayStr()).replace(/Modul 0 |Module 0 /, ''), ...(bs ? [`${t().baseLabel}: ${bs}`] : []), ...body].join('\n');
+  return { text, body };
+}
+function skrBody() {
+  const p = S.skr.part;
+  return `${p === 'parq' ? skrParq() : p === 'aha' ? skrAha() : skrAcsm()}${copyCard(skrCopy())}`;
+}
+function renderSkr() {
+  app.innerHTML = `${pageHeader(t().skrKicker, t().skrTitle, t().skrSub)}
+  <main class="main">
+    <div class="note">${svg('shield', '#9A3412')}<span>${esc(t().skrNote)}</span></div>
+    <div class="seg" role="group" aria-label="${esc(t().skrTitle)}">${['acsm', 'parq', 'aha'].map(k => `<button type="button" data-part="${k}" aria-pressed="${S.skr.part === k}">${esc(t().skrParts[k])}</button>`).join('')}</div>
+    <div id="skrbody">${skrBody()}</div>
+    <div class="foot"><span>${esc(t().skrSources)}</span><span>${esc(t().meta2)}</span></div>
+  </main>${nav('calc')}`;
+}
+function refreshSkr(focusSel) {
+  document.getElementById('skrbody').innerHTML = skrBody();
+  document.querySelectorAll('[data-part]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.part === S.skr.part)));
+  if (focusSel) document.querySelector(focusSel)?.focus();
+}
+
 // ---------- Modul 2 & 3: tes berbasis data (lihat tests.js) ----------
 const MODNUM = { m2: '02', m3: '03' };
 const DEFKEY = { ymca: 'steptest', harvard: 'fi', yoyo: 'yoyo', ift: 'vift', smwt: 'smwt', grip: 'grip', sts: 'sts' };
@@ -358,7 +478,7 @@ function fxBox(id, f, sLines, pop, refs) {
     <span class="k">${esc(t().fPop)}</span><span class="r">${esc(pop)}</span>
     ${refs.length ? `<span class="k">${esc(t().fSource)}</span>${refHtml(refs)}<span class="hint">${esc(t().doiNote)}</span>` : ''}</div>`;
 }
-const fxBtn = id => `<button type="button" class="linkbtn" data-mfx="${id}" aria-expanded="${UI.mfx.has(id)}" aria-controls="mfx-${id}">${esc(UI.mfx.has(id) ? t().hideF : t().showF)}${svg('chev', '#9A3412', 16)}</button>`;
+const fxBtn = (id, src = false) => `<button type="button" class="linkbtn" data-mfx="${id}" aria-expanded="${UI.mfx.has(id)}" aria-controls="mfx-${id}">${esc(UI.mfx.has(id) ? (src ? t().hideSrc : t().hideF) : (src ? t().showSrc : t().showF))}${svg('chev', '#9A3412', 16)}</button>`;
 const kvRow = (k, v) => `<div class="frow"><div class="frow-main"><div class="frow-name" style="font-weight:600;font-size:14px">${esc(k)}</div></div><span class="frow-val" style="font-size:17px">${esc(v)}</span></div>`;
 
 function modOut(mod, s) {
@@ -528,6 +648,8 @@ function sexField() {
 // Hasil tiap modul untuk ringkasan (null bila belum lengkap)
 function moduleCopies() {
   const out = [];
+  const sk = skrCopy();
+  if (sk) out.push({ id: 'skr', title: t().skrTitle, text: sk.text, body: sk.body });
   m1Out(m1State());
   if (UI.copy) out.push({ id: 'm1', title: MODULES[0].title[lang], text: UI.copy, body: UI.copy.split('\n').slice(1) });
   for (const mod of ['m2', 'm3']) {
@@ -583,7 +705,8 @@ function route() {
   document.documentElement.lang = lang;
   const h = location.hash || '#/';
   const mm = h.match(/^#\/m\/(m\d+)$/);
-  if (mm) {
+  if (h === '#/m/skr') renderSkr();
+  else if (mm) {
     const i = MODULES.findIndex(m => m.id === mm[1]);
     if (i === 0) renderM1(); else if (mm[1] === 'm2' || mm[1] === 'm3') renderMod(mm[1]); else if (i > 0) renderWip(MODULES[i], i + 1); else renderHome();
   } else if (h === '#/data') renderBase();
@@ -638,6 +761,12 @@ app.addEventListener('click', async e => {
   }
   if (b.dataset.sex) { S.base.sex = b.dataset.sex; save(); UI.clearArmed = false; refreshCurrent(); document.querySelector(`[data-sex="${S.base.sex}"]`)?.focus(); return; }
   if (b.dataset.fx) { const k = b.dataset.fx; UI.open.has(k) ? UI.open.delete(k) : UI.open.add(k); refreshM1(); document.querySelector(`[data-fx="${k}"]`)?.focus(); return; }
+  if (b.dataset.mfx && location.hash === '#/m/skr') { const k = b.dataset.mfx; UI.mfx.has(k) ? UI.mfx.delete(k) : UI.mfx.add(k); refreshSkr(`[data-mfx="${k}"]`); return; }
+  if (b.dataset.part) { S.skr.part = b.dataset.part; save(); refreshSkr(`[data-part="${b.dataset.part}"]`); return; }
+  if (b.dataset.yn) { S.skr[b.dataset.yn] = S.skr[b.dataset.yn] === b.dataset.v ? '' : b.dataset.v; if (!acsmNeedIntent()) { S.skr.intent = ''; S.skr.cleared = ''; } if (S.skr.intent !== 'vig') S.skr.cleared = ''; save(); UI.clearArmed = false; refreshSkr(`[data-yn="${b.dataset.yn}"][data-v="${b.dataset.v}"]`); return; }
+  if (b.dataset.aha) { const k = b.dataset.aha; if (S.skr.aha[k] === b.dataset.v) delete S.skr.aha[k]; else S.skr.aha[k] = b.dataset.v; save(); UI.clearArmed = false; refreshSkr(`[data-aha="${k}"][data-v="${b.dataset.v}"]`); return; }
+  if ('aharest' in b.dataset) { AHA14.forEach(x => { if (!S.skr.aha[x.k]) S.skr.aha[x.k] = 'n'; }); save(); refreshSkr('#h-ah'); return; }
+  if (b.dataset.parq) { S.skr.parq = S.skr.parq === b.dataset.parq ? '' : b.dataset.parq; save(); refreshSkr(`[data-parq="${b.dataset.parq}"]`); return; }
   if (b.dataset.mfx) { const k = b.dataset.mfx, mod = location.hash.slice(4); UI.mfx.has(k) ? UI.mfx.delete(k) : UI.mfx.add(k); refreshMod(mod); document.querySelector(`[data-mfx="${k}"]`)?.focus(); return; }
   if (b.dataset.ex) { S.m3.ex = b.dataset.ex; save(); refreshMod('m3'); document.querySelector(`[data-ex="${b.dataset.ex}"]`)?.focus(); return; }
   if ('karv' in b.dataset) { UI.karvOpen = !UI.karvOpen; refreshM1(); document.querySelector('[data-karv]')?.focus(); return; }

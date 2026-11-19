@@ -5,6 +5,7 @@ import {
   hrmax, hrmaxApplies, acsmZones, vo2Cooper, vo2Rockport, vo2Leger, legerSpeed, vo2Run24, vo2Queens, harvardLong, harvardShort,
   vo2YoYo1, vo2Ift, sixMwtPred, rmEpley, rmBrzycki, NUZZO, round05, gripCut, stsCut,
 } from '../js/formulas.js';
+import { acsmResult } from '../js/screening.js';
 
 const near = (a, b, tol = 0.05) => Math.abs(a - b) <= tol;
 let n = 0;
@@ -53,5 +54,17 @@ check('Handgrip ≥65 th: pria 28, wanita 18', gripCut(70, true) === 28 && gripC
 check('Handgrip 50–64 th: pria 34, wanita 20', gripCut(55, true) === 34 && gripCut(55, false) === 20);
 check('Handgrip <50 th: tanpa ambang', gripCut(49, true) === null);
 check('5×STS: ambang 12 dtk hanya ≥65 th', stsCut(65) === 12 && stsCut(64) === null);
+
+// Skrining — algoritma ACSM (Riebe 2015): 6 kotak + pengecualian clearance ≤12 bulan
+const A = (active, known, symp, intent = '', cleared = '') => acsmResult({ active, known, symp, intent, cleared });
+check('ACSM 1: tidak rutin, tanpa penyakit, tanpa gejala → tanpa clearance', A('n', 'n', 'n').cell === 1 && A('n', 'n', 'n').level === 'ok');
+check('ACSM 2: tidak rutin, penyakit diketahui, tanpa gejala → clearance', A('n', 'y', 'n').cell === 2 && A('n', 'y', 'n').level === 'warn');
+check('ACSM 3: tidak rutin, ada gejala → clearance (status penyakit tak berpengaruh)', A('n', '', 'y').cell === 3 && A('n', 'n', 'y').cell === 3);
+check('ACSM 4: rutin, tanpa penyakit, tanpa gejala → tanpa clearance', A('y', 'n', 'n').cell === 4 && A('y', 'n', 'n').level === 'ok');
+check('ACSM 5: rutin, penyakit, tanpa gejala, intensitas sedang → tanpa clearance', A('y', 'y', 'n', 'mod').level === 'ok');
+check('ACSM 5: intensitas berat tanpa clearance ≤12 bln → clearance', A('y', 'y', 'n', 'vig', 'n').level === 'warn');
+check('ACSM 5: intensitas berat dengan clearance ≤12 bln → boleh', A('y', 'y', 'n', 'vig', 'y').level === 'ok');
+check('ACSM 6: rutin, ada gejala → hentikan latihan (merah)', A('y', '', 'y').cell === 6 && A('y', '', 'y').level === 'stop');
+check('ACSM: jawaban belum lengkap → belum ada hasil', A('', 'n', 'n') === null && A('y', 'y', 'n') === null && A('y', 'y', 'n', 'vig') === null);
 
 console.log(`\n${n} pemeriksaan lulus.`);
