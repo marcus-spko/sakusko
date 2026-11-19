@@ -267,7 +267,7 @@ export const RM_INFO = {
     en: 'ACSM 2026: strength improves most with loads ≥80% 1RM, 2–3 sets, ≥2 sessions/week; hypertrophy with ≥10 sets/week; power with moderate loads of 30–70% 1RM.',
   },
   nuzzoNote: {
-    id: 'Repetisi = rerata ± SD antarindividu dari meta-regresi 269 studi (7.289 orang, mayoritas pria, sehat, usia <59 tahun). Leg press menghasilkan lebih banyak repetisi daripada bench press pada beban yang sama.',
-    en: 'Reps = mean ± between-individual SD from a meta-regression of 269 studies (7,289 people, mostly male, healthy, aged <59). The leg press yields more reps than the bench press at the same load.',
+    id: 'Repetisi = rerata ± SD antarindividu dari meta-regresi 269 studi (7.289 orang, mayoritas pria, sehat, usia <59 tahun). Nuzzo hanya membuat tabel khusus bench press dan leg press; squat, deadlift, dan latihan lain memakai tabel Umum. Squat sudah dianalisis dan tidak berbeda bermakna; deadlift tidak dianalisis tersendiri.',
+    en: 'Reps = mean ± between-individual SD from a meta-regression of 269 studies (7,289 people, mostly male, healthy, aged <59). Nuzzo built separate tables only for the bench press and leg press; the squat, deadlift and other lifts use the General table. The squat was analysed without a meaningful difference; the deadlift was not analysed separately.',
   },
 };

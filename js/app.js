@@ -445,7 +445,7 @@ function rmOut(s) {
       ...(r.measOk ? [['meas', `${t().measured1rm} · ${num(r.meas, 1)} kg`]] : [])]
       .map(([k, l]) => `<option value="${k}" ${S.m3.basis === k ? 'selected' : ''}>${esc(l)}</option>`).join('');
     const ex = NUZZO[S.m3.ex] ? S.m3.ex : 'general';
-    const rows = NUZZO[ex].map(([p, m, sd]) => `<tr><td>${p}%</td><td><b>${num(round05(basisVal * p / 100), 1)}</b> kg</td><td>${num(m, 1)} ± ${num(sd, 1)}</td></tr>`).join('');
+    const rows = NUZZO[ex].filter(([p]) => p >= 50).map(([p, m, sd]) => `<tr><td>${p}%</td><td><b>${num(round05(basisVal * p / 100), 1)}</b> kg</td><td>${num(m, 1)} ± ${num(sd, 1)}</td></tr>`).join('');
     table = `<label class="field"><span class="lbl">${esc(t().rmBasis)}</span><select class="sel" id="rmBasis">${bopts}</select></label>
       <div class="field"><span class="lbl" id="exLbl">${esc(t().exLbl)}</span>
         <div class="seg" role="group" aria-labelledby="exLbl">${['general', 'bench', 'leg'].map(k => `<button type="button" data-ex="${k}" aria-pressed="${ex === k}">${esc(t().ex[k])}</button>`).join('')}</div></div>
