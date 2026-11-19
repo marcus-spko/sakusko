@@ -1,5 +1,6 @@
 // SakuSKO — aplikasi utama. Tanpa server, tanpa penyimpanan data pasien.
-import { HRMAX, HRMAX_ORDER, hrmax, hrmaxApplies, acsmZones, karvonen, LIMITS } from './formulas.js';
+import { HRMAX, HRMAX_ORDER, hrmax, hrmaxApplies, acsmZones, karvonen, LIMITS, rmEpley, rmBrzycki, NUZZO, round05 } from './formulas.js';
+import { TESTS, REF, RM_INFO } from './tests.js';
 import { MODULES, T, M1_FORMULAS, KARVONEN_REF, GLOSSARY, ABOUT } from './i18n.js';
 import { S, load, save, clear, expireIfDue, expiresAt, isEmpty } from './session.js';
 
@@ -37,7 +38,7 @@ let offline = 'wait';           // 'wait' | 'ready' | 'none'
 let installEvt = null;
 let query = '';
 // Data pemeriksaan ada di S (session.js); UI hanya status tampilan
-const UI = { open: new Set(), karvOpen: false, touched: new Set(), measWasOk: undefined, copy: null, flash: '', clearArmed: false };
+const UI = { open: new Set(), karvOpen: false, touched: new Set(), measWasOk: undefined, copy: null, flash: '', clearArmed: false, mfx: new Set(), rmMeasWas: undefined };
 const loaded = load();
 if (loaded === 'expired') UI.flash = 'expired';
 
@@ -77,7 +78,7 @@ const ibtn = (key, label) => `<button type="button" class="ibtn" data-def="${key
 function homeTiles() {
   const q = query.trim().toLowerCase();
   const list = MODULES.map((m, i) => ({ ...m, n: i + 1 })).filter(m => !q ||
-    [m.title.id, m.title.en, m.cat.id, m.cat.en].some(s => s.toLowerCase().includes(q)));
+    [m.title.id, m.title.en, m.cat.id, m.cat.en, m.kw || ''].some(s => s.toLowerCase().includes(q)));
   const tiles = list.map(m => `<a class="tile" href="#/m/${m.id}">
       <div class="tile-top"><span class="tile-ic">${svg(m.icon, '#C2410C')}</span>
       ${m.ready ? `<span class="tile-num">${String(m.n).padStart(2, '0')}</span>` : `<span class="soon">${esc(t().soon)}</span>`}</div>
@@ -122,10 +123,10 @@ function m1State() {
   return { age, hrRest, hrMeas, err: shown, allErr: err, ok, restOk, measOk };
 }
 
-function field(id, label, unit, value, { req = true, tag = '', hint = '', def = null, err = '', dec: isDec = false } = {}) {
+function field(id, label, unit, value, { req = true, tag = '', hint = '', def = null, err = '', dec: isDec = false, key = '', mod = '' } = {}) {
   return `<div class="field ${err ? 'invalid' : ''}" id="f-${id}">
     <div class="lbl-row"><label class="lbl" for="${id}">${esc(label)}</label>${req ? '<span class="req" aria-hidden="true">*</span>' : `<span class="opt">${esc(tag || t().optional)}</span>`}${def ? ibtn(def, label) : ''}</div>
-    <div class="inbox"><input id="${id}" name="${id}" type="text" inputmode="${isDec ? 'decimal' : 'numeric'}" autocomplete="off" enterkeyhint="next" value="${esc(value)}" ${req ? 'aria-required="true"' : ''} ${err ? `aria-invalid="true" aria-describedby="e-${id}"` : ''}><span class="unit">${esc(unit)}</span></div>
+    <div class="inbox"><input id="${id}" name="${id}" type="text" inputmode="${isDec ? 'decimal' : 'numeric'}" autocomplete="off" enterkeyhint="next" ${key ? `data-key="${key}" data-mod="${mod}"` : ''} value="${esc(value)}" ${req ? 'aria-required="true"' : ''} ${err ? `aria-invalid="true" aria-describedby="e-${id}"` : ''}><span class="unit">${esc(unit)}</span></div>
     <div id="m-${id}" data-hint="${esc(hint)}">${msgHtml(id, err, hint)}</div></div>`;
 }
 function msgHtml(id, err, hint) {
@@ -133,7 +134,8 @@ function msgHtml(id, err, hint) {
 }
 // Perbarui pesan kesalahan tanpa mengganti kotak isian (keyboard HP tidak tertutup)
 function updateFieldMsgs(s) {
-  for (const id of ['age', 'hrRest', 'hrMeas', 'weight', 'height']) {
+  for (const fbox of document.querySelectorAll('.field[id^="f-"]')) {
+    const id = fbox.id.slice(2);
     const err = s.err[id] || '';
     const box = document.getElementById(`f-${id}`), input = document.getElementById(id), slot = document.getElementById(`m-${id}`);
     if (!box || !input || !slot) continue;
@@ -266,13 +268,213 @@ function refreshM1(keepInputs = false) {
   document.getElementById('m1out').innerHTML = m1Out(s);
 }
 
+
+// ---------- Modul 2 & 3: tes berbasis data (lihat tests.js) ----------
+const MODNUM = { m2: '02', m3: '03' };
+const DEFKEY = { ymca: 'steptest', harvard: 'fi', yoyo: 'yoyo', ift: 'vift', smwt: 'smwt', grip: 'grip', sts: 'sts' };
+const ctx = () => ({ L: lang, f0: x => num(x, 0), f1: x => num(x, 1), f2: x => num(x, 2), u: lang === 'id' ? 'mL/kg/mnt' : 'mL/kg/min' });
+const fid = (mod, tid, k) => `t-${mod}-${tid}-${k}`;
+const curTest = mod => TESTS[mod].find(x => x.id === S[mod].test) || TESTS[mod][0];
+const baseVals = () => ({ age: parse(S.base.age), sex: S.base.sex, weight: parse(S.base.weight), height: parse(S.base.height) });
+
+// Nilai, kesalahan, dan hasil satu tes (tanpa menyentuh layar; dipakai juga oleh Ringkasan)
+function evalTest(mod, test) {
+  const baseErr = m1State().allErr;
+  const v = {}, err = {};
+  let fieldsOk = true;
+  for (const f of test.fields) {
+    const raw = S[mod].v[`${test.id}.${f.k}`] ?? '';
+    const x = parse(raw);
+    v[f.k] = NaN;
+    if (raw !== '') {
+      if (!(x >= f.lim[0] && x <= f.lim[1]) || (f.int && !Number.isInteger(x))) err[fid(mod, test.id, f.k)] = f.int ? t().errInt(...f.lim) : t().errRange(...f.lim);
+      else v[f.k] = x;
+    }
+    if (f.req && !Number.isFinite(v[f.k])) fieldsOk = false;
+  }
+  const missing = test.needs.filter(k => (k === 'sex' ? !S.base.sex : S.base[k] === '' || !!baseErr[k]));
+  const b = baseVals();
+  let res = null;
+  if (test.special === 'rm') res = rmCalc(v);
+  else if (fieldsOk && !missing.length) res = test.calc(v, b, ctx());
+  // usia di luar populasi asal: tetap dihitung, diberi catatan (juga di teks salin)
+  const outAge = !!(res && test.ageRange && S.base.age !== '' && !baseErr.age && (b.age < test.ageRange[0] || b.age > test.ageRange[1]));
+  if (outAge && res.copy) res.copy += t().copyOutAge;
+  return { v, err, missing, res, fieldsOk, outAge };
+}
+
+function modState(mod) {
+  const test = curTest(mod), e = evalTest(mod, test), base = m1State();
+  const err = { ...e.err };
+  for (const k of ['age', 'weight', 'height']) if (base.allErr[k]) err[k] = base.allErr[k];
+  const shown = Object.fromEntries(Object.entries(err).filter(([k]) => UI.touched.has(k)));
+  return { ...e, test, err: shown };
+}
+
+function renderMod(mod) {
+  const i = MODULES.findIndex(m => m.id === mod), M = MODULES[i], s = modState(mod);
+  const opts = TESTS[mod].map(x => `<option value="${x.id}" ${x.id === s.test.id ? 'selected' : ''}>${esc(x.name[lang])}</option>`).join('');
+  app.innerHTML = `${pageHeader(t().moduleLabel(MODNUM[mod], M.cat[lang]), M.title[lang], t()[`${mod}Sub`])}
+  <main class="main">
+    <div class="note">${svg('body', '#9A3412')}<span>${esc(t()[`${mod}Pop`])}</span></div>
+    <section class="card" aria-labelledby="h-test">
+      <label class="field"><span class="lbl" id="h-test">${esc(t().chooseTest)}</span><select class="sel" id="testSel">${opts}</select></label>
+      <div class="fbox" style="margin:0"><span class="k">${esc(t().protocol.toUpperCase())}</span><span class="r" id="protoTxt">${esc(s.test.protocol[lang])}</span></div>
+    </section>
+    <section class="card" aria-labelledby="h-in">
+      <div class="row-between"><h2 class="h2" id="h-in">${esc(t().dataIn)}</h2><span class="muted"><span class="req">*</span> ${esc(t().required)}</span></div>
+      <div id="fields">${modFields(mod, s)}</div>
+      <div class="privacy">${svg('lock', '#5C4F45', 16)}<span>${esc(t().storedNote)}</span></div>
+    </section>
+    <div id="modout">${modOut(mod, s)}</div>
+    <div class="foot"><span>${esc(t()[`${mod}Sources`])}</span><span>${esc(t().meta2)}</span></div>
+  </main>${nav('calc')}`;
+}
+
+function modFields(mod, s) {
+  const test = s.test, out = [];
+  for (const k of test.needs) {
+    if (k === 'age') out.push(field('age', t().age, t().years, S.base.age, { err: s.err.age }));
+    if (k === 'sex') out.push(sexField());
+    if (k === 'weight') out.push(field('weight', t().weight, 'kg', S.base.weight, { err: s.err.weight, dec: true }));
+    if (k === 'height') out.push(field('height', t().height, 'cm', S.base.height, { err: s.err.height, dec: true }));
+  }
+  for (const f of test.fields) {
+    const id = fid(mod, test.id, f.k);
+    out.push(field(id, f.label[lang], f.unit[lang], S[mod].v[`${test.id}.${f.k}`] ?? '', {
+      req: f.req, tag: f.tag ? f.tag[lang] : '', hint: f.hint ? f.hint[lang] : '', err: s.err[id], dec: !!f.dec, key: `${test.id}.${f.k}`, mod,
+    }));
+  }
+  return `<div style="display:flex;flex-direction:column;gap:14px">${out.join('')}</div>`;
+}
+
+const refHtml = keys => keys.map(k => `<span class="r">${esc(REF[k].ref)}${REF[k].doi ? ` <a href="https://doi.org/${REF[k].doi}" target="_blank" rel="noopener">doi:${REF[k].doi}</a>` : ''}</span>`).join('');
+function fxBox(id, f, sLines, pop, refs) {
+  return `<div class="fbox" id="mfx-${id}">
+    <span class="k">${esc(t().fFormula)}</span>${f.map(x => `<span class="f" style="font-size:14px">${esc(x)}</span>`).join('')}
+    ${sLines.length ? `<span class="k">${esc(t().fWithData)}</span>${sLines.map(x => `<span class="s" style="font-size:14px">${esc(x)}</span>`).join('')}` : ''}
+    <span class="k">${esc(t().fPop)}</span><span class="r">${esc(pop)}</span>
+    ${refs.length ? `<span class="k">${esc(t().fSource)}</span>${refHtml(refs)}<span class="hint">${esc(t().doiNote)}</span>` : ''}</div>`;
+}
+const fxBtn = id => `<button type="button" class="linkbtn" data-mfx="${id}" aria-expanded="${UI.mfx.has(id)}" aria-controls="mfx-${id}">${esc(UI.mfx.has(id) ? t().hideF : t().showF)}${svg('chev', '#9A3412', 16)}</button>`;
+const kvRow = (k, v) => `<div class="frow"><div class="frow-main"><div class="frow-name" style="font-weight:600;font-size:14px">${esc(k)}</div></div><span class="frow-val" style="font-size:17px">${esc(v)}</span></div>`;
+
+function modOut(mod, s) {
+  const test = s.test;
+  if (test.special === 'rm') return rmOut(s);
+  const head = r => (r && r.mainLabel) || (test.noVo2 ? t().result : t().vo2Est);
+  let body;
+  if (s.missing.length) body = `<p class="empty" style="margin:0">${esc(t().needBase(s.missing.map(k => t().baseNames[k]).join(', ')))}</p>`;
+  else if (!s.res) body = `<p class="empty" style="margin:0">${esc(t().fillTest)}</p>`;
+  else {
+    const r = s.res, d = r.d ?? 1, unit = r.unit ?? ctx().u;
+    body = `<div class="big"><b>${num(r.val, d)}</b><span>${esc(unit)}</span></div>
+      ${(r.rows || []).map(([k, v]) => kvRow(k, v)).join('')}
+      ${r.flag ? `<div class="note">${svg(r.flag.level === 'warn' ? 'alert' : 'info', '#9A3412')}<span>${esc(r.flag.text)}</span></div>` : ''}
+      ${s.outAge ? `<div class="note">${svg('alert', '#9A3412')}<span>${esc(t().outAge(test.ageRange[0], test.ageRange[1]))}${test.ageNote ? ` ${esc(test.ageNote[lang])}` : ''}</span></div>` : ''}
+      <span class="hint">${esc(t().popLbl)}: ${esc(test.pop[lang])}</span>
+      ${fxBtn(test.id)}${UI.mfx.has(test.id) ? fxBox(test.id, r.f, r.s, test.pop[lang], test.refs) : ''}`;
+  }
+  const def = DEFKEY[test.id] || 'vo2max';
+  const copy = modCopy(mod);
+  return `<section class="card" aria-labelledby="h-res">
+      <div class="lbl-row"><h2 class="h2" id="h-res">${esc(head(s.res))}</h2>${ibtn(def, head(s.res))}</div>
+      ${body}
+      ${test.caveat ? `<div class="note">${svg('alert', '#9A3412')}<span>${esc(test.caveat[lang])}</span></div>` : ''}
+    </section>${copyCard(copy)}`;
+}
+
+function copyCard(copy) {
+  UI.copy = copy ? copy.text : null;
+  if (!copy) return '';
+  return `<section class="card" aria-labelledby="h-cp" style="margin-top:14px">
+      <h2 class="h2" id="h-cp">${esc(t().copyPreview)}</h2>
+      <div class="copybox" id="copyText">${esc(copy.text)}</div>
+      <button type="button" class="btn-primary" id="copyBtn">${svg('copy', '#1C1206', 20, 2.2)}<span id="copyLbl">${esc(t().copy)}</span></button>
+      <span class="err" id="copyErr" hidden></span></section>`;
+}
+
+// Teks salin satu modul: semua tes yang sudah lengkap (bukan hanya tes yang sedang dibuka)
+function modCopy(mod) {
+  const lines = [], shorts = [];
+  for (const test of TESTS[mod]) {
+    const e = evalTest(mod, test);
+    if (!e.res) continue;
+    if (test.special === 'rm') { const l = rmCopyLines(e.res); if (!l.length) continue; lines.push(...l); }
+    else lines.push(e.res.copy);
+    shorts.push(test.short);
+  }
+  if (!lines.length) return null;
+  const body = [...lines, t().srcLine([...new Set(shorts.join('; ').split('; '))].join('; '))];
+  const M = MODULES.find(m => m.id === mod);
+  const bs = baseSummary();
+  const text = [t().copyHeaderMod(Number(MODNUM[mod]), M.title[lang], todayStr()), ...(bs ? [`${t().baseLabel}: ${bs}`] : []), ...body].join('\n');
+  return { text, body };
+}
+
+// ----- 1RM & tabel beban -----
+function rmCalc(v) {
+  const estOk = Number.isFinite(v.load) && Number.isFinite(v.reps);
+  const r = { estOk, load: v.load, reps: v.reps, meas: v.meas, measOk: Number.isFinite(v.meas) };
+  if (estOk) { r.epley = rmEpley(v.load, v.reps); r.brzycki = rmBrzycki(v.load, v.reps); }
+  if (!estOk && !r.measOk) return null;
+  return r;
+}
+function rmCopyLines(r) {
+  const l = [];
+  if (r.estOk) l.push(t().copyRm(num(r.load, 1).replace(/[.,]0$/, ''), num(r.reps), num(r.epley, 1), num(r.brzycki, 1)));
+  if (r.measOk) l.push(t().copyRmMeas(num(r.meas, 1).replace(/[.,]0$/, '')));
+  return l;
+}
+function rmOut(s) {
+  const test = s.test, r = s.res;
+  // dasar tabel: 1RM terukur otomatis dipakai saat baru diisi (seperti HRmax terukur di Modul 1)
+  if (r && r.measOk && UI.rmMeasWas !== true) S.m3.basis = 'meas';
+  if (S.m3.basis === 'meas' && !(r && r.measOk)) S.m3.basis = 'brzycki';
+  if (r && !r.estOk && r.measOk) S.m3.basis = 'meas';
+  UI.rmMeasWas = !!(r && r.measOk);
+  const est = !r || !r.estOk ? `<p class="empty" style="margin:0">${esc(t().rmNeedEst)}</p>`
+    : `${kvRow('Epley', `${num(r.epley, 1)} kg`)}${kvRow('Brzycki', `${num(r.brzycki, 1)} kg`)}
+       <span class="hint">${esc(t().popLbl)}: ${esc(test.pop[lang])}</span>
+       ${fxBtn('rm')}${UI.mfx.has('rm') ? fxBox('rm', [RM_INFO.epleyF, RM_INFO.brzyckiF],
+        [`${num(r.load, 1)} × (1 + ${num(r.reps)}/30) = ${num(r.epley, 1)}`, `${num(r.load, 1)} × 36 / (37 − ${num(r.reps)}) = ${num(r.brzycki, 1)}`], test.pop[lang], test.refs) : ''}`;
+  let table = `<p class="empty" style="margin:0">${esc(t().rmNeed)}</p>`;
+  if (r) {
+    const basisVal = S.m3.basis === 'meas' ? r.meas : S.m3.basis === 'epley' ? r.epley : r.brzycki;
+    const bopts = [...(r.estOk ? [['brzycki', `Brzycki · ${num(r.brzycki, 1)} kg`], ['epley', `Epley · ${num(r.epley, 1)} kg`]] : []),
+      ...(r.measOk ? [['meas', `${t().measured1rm} · ${num(r.meas, 1)} kg`]] : [])]
+      .map(([k, l]) => `<option value="${k}" ${S.m3.basis === k ? 'selected' : ''}>${esc(l)}</option>`).join('');
+    const ex = NUZZO[S.m3.ex] ? S.m3.ex : 'general';
+    const rows = NUZZO[ex].map(([p, m, sd]) => `<tr><td>${p}%</td><td><b>${num(round05(basisVal * p / 100), 1)}</b> kg</td><td>${num(m, 1)} ± ${num(sd, 1)}</td></tr>`).join('');
+    table = `<label class="field"><span class="lbl">${esc(t().rmBasis)}</span><select class="sel" id="rmBasis">${bopts}</select></label>
+      <div class="field"><span class="lbl" id="exLbl">${esc(t().exLbl)}</span>
+        <div class="seg" role="group" aria-labelledby="exLbl">${['general', 'bench', 'leg'].map(k => `<button type="button" data-ex="${k}" aria-pressed="${ex === k}">${esc(t().ex[k])}</button>`).join('')}</div></div>
+      <table class="tbl"><thead><tr><th scope="col">${esc(t().colPct)}</th><th scope="col">${esc(t().colLoad)}</th><th scope="col">${esc(t().colReps)}</th></tr></thead><tbody>${rows}</tbody></table>
+      <span class="hint">${esc(t().roundNote)} ${esc(RM_INFO.nuzzoNote[lang])}</span>
+      <div class="note">${svg('info', '#9A3412')}<span>${esc(RM_INFO.acsm[lang])}</span></div>
+      ${fxBtn('nz')}${UI.mfx.has('nz') ? `<div class="fbox" id="mfx-nz"><span class="k">${esc(t().fFormula)}</span><span class="f" style="font-size:14px">${lang === 'id' ? 'Beban = 1RM × %1RM' : 'Load = 1RM × %1RM'}</span><span class="k">${esc(t().fSource)}</span>${refHtml(['nuzzo', 'currier'])}<span class="hint">${esc(t().doiNote)}</span></div>` : ''}`;
+  }
+  return `<section class="card" aria-labelledby="h-rm"><div class="lbl-row"><h2 class="h2" id="h-rm">${esc(t().rmEst)}</h2>${ibtn('1RM', '1RM')}</div>${est}
+      ${test.caveat ? `<div class="note">${svg('alert', '#9A3412')}<span>${esc(test.caveat[lang])}</span></div>` : ''}</section>
+    <section class="card" aria-labelledby="h-tb" style="margin-top:14px"><div class="lbl-row"><h2 class="h2" id="h-tb">${esc(t().rmTable)}</h2>${ibtn('pct1rm', '%1RM')}</div>${table}</section>
+    ${copyCard(modCopy('m3'))}`;
+}
+
+function refreshMod(mod, keepInputs = false) {
+  const s = modState(mod);
+  if (keepInputs) updateFieldMsgs(s); else document.getElementById('fields').innerHTML = modFields(mod, s);
+  document.getElementById('modout').innerHTML = modOut(mod, s);
+}
+
 // Kolom isian → tempat datanya di sesi
 const FIELD_STORE = { age: () => S.base, weight: () => S.base, height: () => S.base, hrRest: () => S.m1, hrMeas: () => S.m1 };
 function refreshCurrent(keepInputs = false) {
   const h = location.hash;
   if (h === '#/data') { if (keepInputs) updateFieldMsgs(m1State()); else document.getElementById('fields').innerHTML = baseFields(m1State()); }
   else if (/^#\/m\/m1$/.test(h)) refreshM1(keepInputs);
+  else { const mm = h.match(/^#\/m\/(m2|m3)$/); if (mm) refreshMod(mm[1], keepInputs); }
 }
+function currentState() { const mm = location.hash.match(/^#\/m\/(m2|m3)$/); return mm ? modState(mm[1]) : m1State(); }
 
 // ---------- Sesi: data dasar & ringkasan ----------
 const hhmm = ts => { const d = new Date(ts); return `${String(d.getHours()).padStart(2, '0')}.${String(d.getMinutes()).padStart(2, '0')}`; };
@@ -325,7 +527,11 @@ function sexField() {
 function moduleCopies() {
   const out = [];
   m1Out(m1State());
-  if (UI.copy) out.push({ id: 'm1', title: MODULES[0].title[lang], text: UI.copy });
+  if (UI.copy) out.push({ id: 'm1', title: MODULES[0].title[lang], text: UI.copy, body: UI.copy.split('\n').slice(1) });
+  for (const mod of ['m2', 'm3']) {
+    const c = modCopy(mod);
+    if (c) out.push({ id: mod, title: MODULES.find(m => m.id === mod).title[lang], text: c.text, body: c.body });
+  }
   return out;
 }
 function todayStr() { const d = new Date(); return `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`; }
@@ -333,7 +539,7 @@ function summaryText(mods) {
   const lines = [t().sumHeader(todayStr())];
   const bs = baseSummary();
   if (bs) lines.push(`${t().baseLabel}: ${bs}`);
-  for (const m of mods) { lines.push('', `[${m.title}]`, ...m.text.split('\n').slice(1)); }
+  for (const m of mods) { lines.push('', `[${m.title}]`, ...m.body); }
   lines.push('', t().sumNote);
   return lines.join('\n');
 }
@@ -377,7 +583,7 @@ function route() {
   const mm = h.match(/^#\/m\/(m\d+)$/);
   if (mm) {
     const i = MODULES.findIndex(m => m.id === mm[1]);
-    if (i === 0) renderM1(); else if (i > 0) renderWip(MODULES[i], i + 1); else renderHome();
+    if (i === 0) renderM1(); else if (mm[1] === 'm2' || mm[1] === 'm3') renderMod(mm[1]); else if (i > 0) renderWip(MODULES[i], i + 1); else renderHome();
   } else if (h === '#/data') renderBase();
   else if (h === '#/ringkasan') renderSummary();
   else if (h === '#/glosarium') renderGloss();
@@ -393,6 +599,13 @@ app.addEventListener('input', e => {
     query = el.value;
     renderHomeTiles(); return;
   }
+  if (el.dataset.key && S[el.dataset.mod]) {
+    const clean = el.value.replace(/[^\d.,]/g, '').slice(0, 6);
+    if (clean !== el.value) el.value = clean;
+    S[el.dataset.mod].v[el.dataset.key] = clean;
+    save(); UI.clearArmed = false;
+    refreshCurrent(true); return;
+  }
   if (FIELD_STORE[el.id]) {
     const clean = el.value.replace(/[^\d.,]/g, '').slice(0, 5);
     if (clean !== el.value) el.value = clean;
@@ -403,9 +616,14 @@ app.addEventListener('input', e => {
 });
 app.addEventListener('focusout', e => {
   const id = e.target.id;
-  if (FIELD_STORE[id] && !UI.touched.has(id)) { UI.touched.add(id); updateFieldMsgs(m1State()); }
+  if ((FIELD_STORE[id] || e.target.dataset.key) && !UI.touched.has(id)) { UI.touched.add(id); updateFieldMsgs(currentState()); }
 });
 app.addEventListener('change', e => {
+  if (e.target.id === 'testSel') {
+    const mod = location.hash.match(/^#\/m\/(m2|m3)$/)?.[1]; if (!mod) return;
+    S[mod].test = e.target.value; save(); renderMod(mod); document.getElementById('testSel')?.focus(); return;
+  }
+  if (e.target.id === 'rmBasis') { S.m3.basis = e.target.value; save(); refreshMod('m3'); document.getElementById('rmBasis')?.focus(); return; }
   if (e.target.id === 'base') { S.m1.basis = e.target.value; save(); refreshM1(); document.getElementById('base')?.focus(); }
 });
 app.addEventListener('click', async e => {
@@ -418,13 +636,15 @@ app.addEventListener('click', async e => {
   }
   if (b.dataset.sex) { S.base.sex = b.dataset.sex; save(); UI.clearArmed = false; refreshCurrent(); document.querySelector(`[data-sex="${S.base.sex}"]`)?.focus(); return; }
   if (b.dataset.fx) { const k = b.dataset.fx; UI.open.has(k) ? UI.open.delete(k) : UI.open.add(k); refreshM1(); document.querySelector(`[data-fx="${k}"]`)?.focus(); return; }
+  if (b.dataset.mfx) { const k = b.dataset.mfx, mod = location.hash.slice(4); UI.mfx.has(k) ? UI.mfx.delete(k) : UI.mfx.add(k); refreshMod(mod); document.querySelector(`[data-mfx="${k}"]`)?.focus(); return; }
+  if (b.dataset.ex) { S.m3.ex = b.dataset.ex; save(); refreshMod('m3'); document.querySelector(`[data-ex="${b.dataset.ex}"]`)?.focus(); return; }
   if ('karv' in b.dataset) { UI.karvOpen = !UI.karvOpen; refreshM1(); document.querySelector('[data-karv]')?.focus(); return; }
   if (b.dataset.def) { openDef(b.dataset.def); return; }
   if (b.id === 'copyBtn') { copyText(UI.copy, b); return; }
   if (b.dataset.copy) { copyText(b.dataset.copy === 'all' ? UI.sumAll : UI.sumMods?.[b.dataset.copy], b); return; }
   if ('clear' in b.dataset) {
     if (!UI.clearArmed) { UI.clearArmed = true; route(); setTimeout(() => { if (UI.clearArmed) { UI.clearArmed = false; route(); } }, 4000); return; }
-    UI.clearArmed = false; clear(); UI.touched.clear(); UI.open.clear(); UI.karvOpen = false; UI.measWasOk = undefined;
+    UI.clearArmed = false; clear(); UI.touched.clear(); UI.open.clear(); UI.mfx.clear(); UI.karvOpen = false; UI.measWasOk = undefined; UI.rmMeasWas = undefined;
     UI.flash = 'cleared'; goHome(); return;
   }
   if (b.id === 'installBtn' && installEvt) { installEvt.prompt(); installEvt = null; return; }

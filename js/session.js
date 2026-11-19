@@ -7,6 +7,8 @@ const KEY = 'sakusko-session';
 const blank = () => ({
   base: { age: '', sex: '', weight: '', height: '' },  // data dasar dipakai lintas modul
   m1: { hrRest: '', hrMeas: '', basis: 'tanaka' },
+  m2: { test: 'cooper', v: {} },                        // v: { 'idTes.kunci': 'angka' }
+  m3: { test: 'rm', v: {}, basis: 'brzycki', ex: 'general' },
   updatedAt: 0,
 });
 
@@ -16,11 +18,14 @@ function assign(src) {
   const b = blank();
   S.base = { ...b.base, ...(src.base || {}) };
   S.m1 = { ...b.m1, ...(src.m1 || {}) };
+  S.m2 = { ...b.m2, ...(src.m2 || {}), v: { ...((src.m2 || {}).v || {}) } };
+  S.m3 = { ...b.m3, ...(src.m3 || {}), v: { ...((src.m3 || {}).v || {}) } };
   S.updatedAt = src.updatedAt || 0;
 }
 
 export function isEmpty() {
-  return Object.values(S.base).every(v => v === '') && S.m1.hrRest === '' && S.m1.hrMeas === '';
+  const noVals = o => Object.values(o.v).every(v => v === '');
+  return Object.values(S.base).every(v => v === '') && S.m1.hrRest === '' && S.m1.hrMeas === '' && noVals(S.m2) && noVals(S.m3);
 }
 
 export function expiresAt() { return S.updatedAt ? S.updatedAt + TTL_MIN * 60000 : 0; }
@@ -40,7 +45,7 @@ export function save() {
   S.updatedAt = Date.now();
   try {
     if (isEmpty()) localStorage.removeItem(KEY);
-    else localStorage.setItem(KEY, JSON.stringify({ base: S.base, m1: S.m1, updatedAt: S.updatedAt }));
+    else localStorage.setItem(KEY, JSON.stringify({ base: S.base, m1: S.m1, m2: S.m2, m3: S.m3, updatedAt: S.updatedAt }));
   } catch (e) { /* penyimpanan tidak tersedia: data tetap di memori */ }
 }
 
