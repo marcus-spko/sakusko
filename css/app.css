@@ -186,3 +186,6 @@ ul.pqnotes { color: var(--muted); margin-bottom: 10px; }
 .pqtext { font-size: 13px; font-weight: 500; line-height: 1.5; color: var(--ink); }
 .guidebtn { margin-top: -8px; }
 .guidebox { margin-top: -6px; }
+/* Teks panjang tanpa spasi (URL, DOI) tidak boleh melewati kotak */
+main { overflow-wrap: break-word; }
+.pqbox, .pqbox li, ul.pqnotes li, .fbox .r, .pqtext, .copybox, .note span { overflow-wrap: anywhere; }
