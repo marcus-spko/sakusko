@@ -15,6 +15,7 @@ const blank = () => ({
   m10: { v: {} },
   m6: { view: 'back', s: {} },
   m9: { v: {}, test: 'single' },
+  m7: { sel: 'cre', picked: [] },                      // picked: kunci suplemen yang masuk Ringkasan
   skr: { part: 'acsm', active: '', known: '', symp: '', intent: '', cleared: '', aha: {}, pqLang: '', pq: { g: {}, q1: {}, txt: {}, f: {} } },
   updatedAt: 0,
 });
@@ -30,6 +31,7 @@ function assign(src) {
   S.m4 = { ...b.m4, ...(src.m4 || {}), v: { ...((src.m4 || {}).v || {}) } };
   S.m5 = { ...b.m5, ...(src.m5 || {}), v: { ...((src.m5 || {}).v || {}) } };
   S.m6 = { ...b.m6, ...(src.m6 || {}), s: { ...((src.m6 || {}).s || {}) } };
+  S.m7 = { ...b.m7, ...(src.m7 || {}), picked: [...((src.m7 || {}).picked || [])] };
   S.m9 = { ...b.m9, ...(src.m9 || {}), v: { ...((src.m9 || {}).v || {}) } };
   S.m10 = { ...b.m10, ...(src.m10 || {}), v: { ...((src.m10 || {}).v || {}) } };
   S.m8 = { ...b.m8, ...(src.m8 || {}), v: { ...((src.m8 || {}).v || {}) } };
@@ -41,7 +43,7 @@ function assign(src) {
 
 export function isEmpty() {
   const noVals = o => Object.values(o.v).every(v => v === '');
-  return Object.values(S.base).every(v => v === '') && S.m1.hrRest === '' && S.m1.hrMeas === '' && noVals(S.m2) && noVals(S.m3) && noVals(S.m4) && noVals(S.m8) && noVals(S.m5) && noVals(S.m10) && noVals(S.m9) && Object.keys(S.m6.s).length === 0 && !S.m4.cho
+  return Object.values(S.base).every(v => v === '') && S.m1.hrRest === '' && S.m1.hrMeas === '' && noVals(S.m2) && noVals(S.m3) && noVals(S.m4) && noVals(S.m8) && noVals(S.m5) && noVals(S.m10) && noVals(S.m9) && Object.keys(S.m6.s).length === 0 && !S.m4.cho && S.m7.picked.length === 0
     && ['active', 'known', 'symp', 'intent', 'cleared'].every(k => S.skr[k] === '') && Object.keys(S.skr.aha).length === 0
     && ['g', 'f'].every(k => Object.values(S.skr.pq[k]).every(v => !v)) && Object.values(S.skr.pq.q1).every(v => !v) && Object.values(S.skr.pq.txt).every(v => !v);
 }
@@ -63,7 +65,7 @@ export function save() {
   S.updatedAt = Date.now();
   try {
     if (isEmpty()) localStorage.removeItem(KEY);
-    else localStorage.setItem(KEY, JSON.stringify({ base: S.base, m1: S.m1, m2: S.m2, m3: S.m3, m4: S.m4, m8: S.m8, m5: S.m5, m10: S.m10, m6: S.m6, m9: S.m9, skr: S.skr, updatedAt: S.updatedAt }));
+    else localStorage.setItem(KEY, JSON.stringify({ base: S.base, m1: S.m1, m2: S.m2, m3: S.m3, m4: S.m4, m8: S.m8, m5: S.m5, m10: S.m10, m6: S.m6, m7: S.m7, m9: S.m9, skr: S.skr, updatedAt: S.updatedAt }));
   } catch (e) { /* penyimpanan tidak tersedia: data tetap di memori */ }
 }
 

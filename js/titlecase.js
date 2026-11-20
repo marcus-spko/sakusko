@@ -4,7 +4,7 @@
 // istilah dengan huruf campuran yang sudah baku (iPhone, mL), dan token yang diawali angka (1RM, 5×, 12).
 const SMALL = new Set(['di', 'ke', 'dari', 'dan', 'yang', 'untuk', 'pada', 'atau', 'dengan', 'per', 'dalam', 'oleh', 'sebagai', 'tanpa', 'bila', 'vs', 'vs.',
   'a', 'an', 'the', 'and', 'or', 'of', 'to', 'in', 'on', 'at', 'for', 'by', 'with', 'from', 'as']);
-const UNITS = new Set(['kg', 'cm', 'm', 'km', 'ml', 'dtk', 'mnt', 's', 'min', 'rep', 'reps', 'th', 'y', 'bpm', 'lb', 'mil', 'mmol', 'mg', 'g', 'l']);
+const UNITS = new Set(['kg', 'cm', 'm', 'km', 'ml', 'dtk', 'mnt', 's', 'min', 'rep', 'reps', 'th', 'y', 'bpm', 'lb', 'mil', 'mmol', 'mg', 'g', 'l', 'h']);
 
 function capWord(w, first) {
   const m = w.match(/^([^\p{L}\p{N}]*)(.*?)([^\p{L}\p{N}]*)$/u);

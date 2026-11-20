@@ -189,3 +189,11 @@ ul.pqnotes { color: var(--muted); margin-bottom: 10px; }
 /* Teks panjang tanpa spasi (URL, DOI) tidak boleh melewati kotak */
 main { overflow-wrap: break-word; }
 .pqbox, .pqbox li, ul.pqnotes li, .fbox .r, .pqtext, .copybox, .note span { overflow-wrap: anywhere; }
+/* Modul 7: kartu suplemen */
+.spsec { display: flex; flex-direction: column; gap: 4px; }
+.spsec > .k { font-size: 11px; font-weight: 800; letter-spacing: .06em; color: var(--label); }
+.spsec > p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink); overflow-wrap: anywhere; }
+.badges { display: flex; gap: 6px; flex-wrap: wrap; }
+.badge.alt { background: var(--tint); color: var(--label); }
+.badge.ok { background: #15803D; }
+.m7txt { flex: 0 1 48%; text-align: right; font-size: 14px; font-weight: 700; color: var(--header-ink); line-height: 1.35; }

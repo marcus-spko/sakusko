@@ -8,7 +8,7 @@ import { TESTS, REF, RM_INFO } from './tests.js';
 import { M48_REF, M4_FIELDS, M8_FIELDS, M48_T } from './m48.js';
 import { M510_REF, SITES, EQS, EQ_ORDER, SOMATO_SITES, M10_FIELDS, M510_T, GUIDE, GUIDE_GENERAL, GUIDE_SRC, SOMATO_CAT } from './m510.js';
 import { NYPR, nyprSvg, NYPR_REF } from './nypr.js';
-import { M79_REF, SUPPS, LSI_ROWS, HQ_FIELDS, M79_T } from './m79.js';
+import { M79_REF, SUPPS, M7_SAFE, LSI_ROWS, HQ_FIELDS, M79_T } from './m79.js';
 import { MODULES, T, M1_FORMULAS, KARVONEN_REF, GLOSSARY, ABOUT } from './i18n.js';
 import { S, load, save, clear, expireIfDue, expiresAt, isEmpty } from './session.js';
 import { startTitleCase } from './titlecase.js';
@@ -42,6 +42,7 @@ const ICONS = {
   file: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z"/><path d="M14 3v6h6"/>',
   link: '<path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/>',
   list: '<path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/>',
+  plus: '<path d="M12 5v14"/><path d="M5 12h14"/>',
 };
 const svg = (name, color = 'currentColor', size = 20, sw = 2) =>
   `<svg aria-hidden="true" focusable="false" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
@@ -879,7 +880,7 @@ function refreshM510(mod, keepInputs = false) {
 
 // ---------- Modul 6 (Postur NYPR), 7 (suplemen), 9 (LSI & H:Q) ----------
 const T7 = () => ({ ...t(), ...M79_T[lang] });
-const refsOf = (OBJ, keys) => keys.map(k => `<span class="r">${esc(OBJ[k].ref)}${OBJ[k].doi ? ` <a href="https://doi.org/${OBJ[k].doi}" target="_blank" rel="noopener">doi:${OBJ[k].doi}</a>` : ''}</span>`).join('');
+const refsOf = (OBJ, keys) => keys.map(k => `<span class="r">${esc(OBJ[k].ref)}${OBJ[k].doi ? ` <a href="https://doi.org/${OBJ[k].doi}" target="_blank" rel="noopener">doi:${OBJ[k].doi}</a>` : ''}${OBJ[k].url ? ` <a href="${esc(OBJ[k].url)}" target="_blank" rel="noopener">${esc(OBJ[k].url)}</a>` : ''}</span>`).join('');
 const srcBox = (id, OBJ, keys, f = []) => `<div class="fbox" id="mfx-${id}">${f.length ? `<span class="k">${esc(t().fFormula)}</span>${f.map(x => `<span class="f" style="font-size:14px">${esc(x)}</span>`).join('')}` : ''}<span class="k">${esc(t().fSource)}</span>${refsOf(OBJ, keys)}<span class="hint">${esc(t().doiNote)}</span></div>`;
 function modHeader(mod) { const i = MODULES.findIndex(m => m.id === mod), M = MODULES[i]; return { M, head: pageHeader(t().moduleLabel(String(i + 1).padStart(2, '0'), M.cat[lang]), M.title[lang], T7()[`${mod}Sub`]) }; }
 function baseCopy(mod, lines, src) {
@@ -934,22 +935,52 @@ function refreshM6(cardsToo = true) {
 }
 
 // ----- Modul 7: suplemen -----
-const gUnit = u => (lang === 'id' ? u : u.replace('hari', 'day'));
+const gUnit = u => (lang === 'id' ? u : u.replace('hari', 'day').replace('jam', 'h'));
 const fmtDose = (vals, unit) => vals.map(v => num(v, Math.abs(v - Math.round(v)) < 0.05 ? 0 : 1)).join('–') + ' ' + gUnit(unit);
+const m7W = () => { const w = parse(S.base.weight); return S.base.weight !== '' && !m1State().allErr.weight && Number.isFinite(w) ? w : NaN; };
+const m7Cur = () => SUPPS.find(x => x.k === S.m7.sel) || SUPPS[0];
+const m7Picked = () => SUPPS.filter(x => S.m7.picked.includes(x.k));
+// Nilai satu baris dosis: angka, teks pengganti, atau penanda "isi BB"
+const m7Val = (r, w) => (r.t ? r.t[lang] : r.w && !Number.isFinite(w) ? null : fmtDose(r.v, r.u));
+function m7Safe() {
+  const T = T7();
+  return `<section class="card" aria-labelledby="h-safe" style="margin-top:14px"><h2 class="h2" id="h-safe">${esc(T.safeHead)}</h2>
+    <div class="pqbox warn" style="margin:0"><ul>${M7_SAFE[lang].map(x => `<li>${esc(x)}</li>`).join('')}</ul></div></section>`;
+}
+function m7Sel() {
+  const T = T7();
+  const opts = SUPPS.map((sp, i) => `<option value="${sp.k}" ${sp.k === m7Cur().k ? 'selected' : ''}>${i + 1}. ${esc(sp.name[lang])} · ${esc(T.evShort[sp.ev])}${S.m7.picked.includes(sp.k) ? ' ✓' : ''}</option>`).join('');
+  return `<section class="card" aria-labelledby="h-m7sel" style="margin-top:14px"><h2 class="h2" id="h-m7sel">${esc(T.suppSel)}</h2>
+    <select class="sel" id="m7Sel" aria-labelledby="h-m7sel">${opts}</select>
+    <span class="hint">${esc(T.suppHint)}</span></section>`;
+}
+const spSec = (k, txt) => `<div class="spsec"><span class="k">${esc(k.toUpperCase())}</span><p>${esc(txt)}</p></div>`;
+function m7Card() {
+  const T = T7(), sp = m7Cur(), w = m7W(), rows = sp.rows(w), on = S.m7.picked.includes(sp.k);
+  const missW = rows.some(r => r.w) && !Number.isFinite(w);
+  const doses = rows.map(r => { const v = m7Val(r, w); return r.t ? `<div class="frow"><div class="frow-main"><div class="frow-name" style="font-weight:600;font-size:14px">${esc(r.l[lang])}</div></div><span class="m7txt">${esc(v)}</span></div>` : kvRow(r.l[lang], v ?? T.needW); }).join('');
+  const badges = `<div class="badges"><span class="badge ${sp.ev === 'moderate' ? 'alt' : ''}">${esc(T.ev[sp.ev])}</span><span class="badge alt">${esc(T.aisLbl(sp.ais))}</span>${on ? `<span class="badge ok">${esc(T.inSum)}</span>` : ''}</div>`;
+  return card(`h-${sp.k}`, sp.name[lang], null, `${badges}
+    ${spSec(T.fnLbl, sp.fn[lang])}${spSec(T.useLbl, sp.use[lang])}
+    <div class="spsec"><span class="k">${esc(T.doseLbl.toUpperCase())}</span>${doses}${missW ? `<span class="hint">${esc(T.needWHint)}</span>` : ''}</div>
+    ${spSec(T.timingLbl, sp.timing[lang])}${spSec(T.sideLbl, sp.side[lang])}${spSec(T.cautionLbl, sp.caution[lang])}${spSec(T.noteLbl, sp.note(w)[lang])}
+    ${fxBtn(`s-${sp.k}`, true)}${UI.mfx.has(`s-${sp.k}`) ? srcBox(`s-${sp.k}`, M79_REF, sp.refs) : ''}
+    <button type="button" class="btn-sec" data-m7pick="${sp.k}" aria-pressed="${on}">${svg(on ? 'check' : 'plus', '#9A3412', 18)}<span>${esc(on ? T.rmSum : T.addSum)}</span></button>`);
+}
+function m7PickedCard() {
+  const T = T7(), list = m7Picked();
+  return card('h-m7pick', T.pickedHead, null, list.length ? `<ul class="pqnotes" style="margin:0;color:var(--ink)">${list.map(sp => `<li>${esc(sp.name[lang])}</li>`).join('')}</ul>` : emptyP(T.pickedNone));
+}
 function m7Out() {
-  const T = T7(), w = parse(S.base.weight), ok = S.base.weight !== '' && !m1State().allErr.weight && Number.isFinite(w);
-  const warn = `<div class="note">${svg('alert', '#9A3412')}<span>${esc(T.m7Warn)}</span></div>`;
-  if (!ok) return `${warn}${card('h-sup', MODULES.find(m => m.id === 'm7').title[lang], null, emptyP(T.m7Need))}`;
-  const cards = SUPPS.map(sp => card(`h-${sp.k}`, sp.name[lang], null, `${sp.rows(w).map(([lbl, vals, unit]) => kvRow(lbl[lang], fmtDose(vals, unit))).join('')}
-      <span class="hint"><b>${esc(T.timingLbl)}:</b> ${esc(sp.timing[lang])}</span><span class="hint">${esc(sp.note(w)[lang])}</span>
-      ${fxBtn(`s-${sp.k}`, true)}${UI.mfx.has(`s-${sp.k}`) ? srcBox(`s-${sp.k}`, M79_REF, sp.refs) : ''}`)).join('');
-  return `${warn}${cards}${copyCard(m7Copy())}`;
+  return `${m7Sel()}${m7Card()}${m7PickedCard()}${copyCard(m7Copy())}`;
 }
 function m7Copy() {
-  const w = parse(S.base.weight); if (S.base.weight === '' || m1State().allErr.weight || !Number.isFinite(w)) return null;
-  const lines = SUPPS.map(sp => `${sp.name[lang]}: ${sp.rows(w).map(([lbl, vals, unit]) => `${lbl[lang]} = ${fmtDose(vals, unit)}`).join('; ')}`);
-  lines.push(lang === 'id' ? 'Catatan: risiko kontaminasi anti-doping; uji saat latihan dulu' : 'Note: anti-doping contamination risk; trial in training first');
-  return baseCopy('m7', lines, 'IOC 2018; ISSN 2017/2021/2025');
+  const list = m7Picked(); if (!list.length) return null;
+  const T = T7(), w = m7W();
+  const lines = list.map(sp => `${sp.name[lang]}: ${sp.rows(w).map(r => { const v = m7Val(r, w); return v === null ? null : `${r.l[lang]} = ${v}`; }).filter(Boolean).join('; ') || T.m7Need}`);
+  lines.push(T.copyNote);
+  const src = [...new Set(list.flatMap(sp => sp.src.split('; ')))].join('; ');
+  return baseCopy('m7', lines, src);
 }
 function renderM7() {
   const T = T7(), { head } = modHeader('m7'), s = m1State();
@@ -957,6 +988,7 @@ function renderM7() {
     <section class="card" aria-labelledby="h-in"><div class="row-between"><h2 class="h2" id="h-in">${esc(t().dataIn)}</h2><span class="muted"><span class="req">*</span> ${esc(t().required)}</span></div>
       <div id="fields">${field('weight', t().weight, 'kg', S.base.weight, { err: UI.touched.has('weight') ? s.allErr.weight : '', dec: true })}</div>
       <div class="privacy">${svg('lock', '#5C4F45', 16)}<span>${esc(t().storedNote)}</span></div></section>
+    ${m7Safe()}
     <div id="modout">${m7Out()}</div>
     <div class="foot"><span>${esc(T.m7Sources)}</span><span>${esc(t().meta2)}</span></div>
   </main>${nav('calc')}`;
@@ -1392,6 +1424,7 @@ app.addEventListener('change', e => {
     const mod = location.hash.match(/^#\/m\/(m2|m3)$/)?.[1]; if (!mod) return;
     S[mod].test = e.target.value; save(); renderMod(mod); document.getElementById('testSel')?.focus(); return;
   }
+  if (e.target.id === 'm7Sel') { S.m7.sel = e.target.value; save(); refreshM79('m7', true); document.getElementById('m7Sel')?.focus(); return; }
   if (e.target.id === 'm9Sel') { S.m9.test = e.target.value; save(); refreshM79('m9'); document.getElementById('m9Sel')?.focus(); return; }
   if (e.target.id === 'eqSel') { S.m5.eq = e.target.value; save(); UI.ffmCopied = false; refreshM510('m5'); document.getElementById('eqSel')?.focus(); return; }
   if (e.target.id === 'rmrBasis') { S.m4.basis = e.target.value; save(); refreshCustom('m4'); document.getElementById('rmrBasis')?.focus(); return; }
@@ -1421,6 +1454,7 @@ app.addEventListener('click', async e => {
   if (b.dataset.ny) { const k = b.dataset.ny, v = Number(b.dataset.v); if (S.m6.s[k] === v) delete S.m6.s[k]; else S.m6.s[k] = v; save(); UI.clearArmed = false; refreshM6(); document.querySelector(`[data-ny="${k}"][data-v="${v}"]`)?.focus(); return; }
   if (b.dataset.nyview) { S.m6.view = b.dataset.nyview; save(); renderM6(); document.querySelector(`[data-nyview="${b.dataset.nyview}"]`)?.focus(); return; }
   if (b.dataset.mfx && location.hash === '#/m/m6') { const k = b.dataset.mfx; UI.mfx.has(k) ? UI.mfx.delete(k) : UI.mfx.add(k); refreshM6(false); document.querySelector(`[data-mfx="${k}"]`)?.focus(); return; }
+  if (b.dataset.m7pick) { const k = b.dataset.m7pick, i = S.m7.picked.indexOf(k); i >= 0 ? S.m7.picked.splice(i, 1) : S.m7.picked.push(k); save(); refreshM79('m7', true); document.querySelector(`[data-m7pick="${k}"]`)?.focus(); return; }
   if (b.dataset.mfx && /^#\/m\/(m7|m9)$/.test(location.hash)) { const k = b.dataset.mfx, mod = location.hash.slice(4); UI.mfx.has(k) ? UI.mfx.delete(k) : UI.mfx.add(k); refreshM79(mod); document.querySelector(`[data-mfx="${k}"]`)?.focus(); return; }
   if (b.dataset.guide) { const k = b.dataset.guide; UI.guide.has(k) ? UI.guide.delete(k) : UI.guide.add(k); refreshM510('m5'); document.querySelector(`[data-guide="${k}"]`)?.focus(); return; }
   if (b.dataset.m5tab) { S.m5.tab = b.dataset.m5tab; save(); renderM510('m5'); document.querySelector(`[data-m5tab="${b.dataset.m5tab}"]`)?.focus(); return; }

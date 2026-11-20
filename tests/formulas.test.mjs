@@ -101,14 +101,19 @@ check('LSI 6-m timed hop 2,4 vs 2,2 dtk = 91,7%', near(lsiTime(2.4, 2.2), 91.67,
 check('H:Q konvensional 110/200 = 0,55', near(hqRatio(110, 200), 0.55, 1e-9));
 check('H:Q fungsional 190/200 = 0,95', near(hqRatio(190, 200), 0.95, 1e-9));
 // Modul 7 — contoh Kartu Spesifikasi v0.1.1 (75 kg)
-const sup = k => SUPPS.find(x => x.k === k).rows(75);
-check('Kafein 75 kg = 225–450 mg', sup('caf')[0][1][0] === 225 && sup('caf')[0][1][1] === 450);
-check('Kreatin tanpa loading = 3–5 g/hari', sup('cre')[0][1][0] === 3 && sup('cre')[0][1][1] === 5);
-check('Kreatin 0,1 g/kg × 75 = 7,5 g/hari', near(sup('cre')[1][1][0], 7.5, 1e-9));
-check('Kreatin loading 0,3 g/kg × 75 = 22,5 g/hari', near(sup('cre')[2][1][0], 22.5, 1e-9));
-check('Bikarbonat 15–30 g; optimal 22,5 g', near(sup('bic')[0][1][0], 15, 1e-9) && near(sup('bic')[0][1][1], 30, 1e-9) && near(sup('bic')[1][1][0], 22.5, 1e-9));
-check('Beta-alanin 65 mg/kg × 75 = 4,9 g/hari', near(sup('ba')[0][1][0], 4.875, 1e-9));
-check('Nitrat tidak per kg (310–560 mg)', SUPPS.find(x => x.k === 'nit').rows(40)[0][1].join() === '310,560');
+const sup = k => SUPPS.find(x => x.k === k).rows(75).map(r => r.v);
+check('Urutan suplemen berdasarkan bukti', SUPPS.map(x => x.k).join() === 'cre,caf,cho,pro,nit,bic,ba,o3');
+check('Setiap suplemen lengkap (fungsi, manfaat, waktu, efek samping, perhatian, sumber, id/en)', SUPPS.every(x => ['fn', 'use', 'timing', 'side', 'caution'].every(f => x[f].id && x[f].en) && x.refs.length && x.note(75).id && ['A', 'B'].includes(x.ais)));
+check('Kafein 75 kg = 225–450 mg', sup('caf')[0][0] === 225 && sup('caf')[0][1] === 450);
+check('Kreatin tanpa loading = 3–5 g/hari', sup('cre')[0][0] === 3 && sup('cre')[0][1] === 5);
+check('Kreatin 0,1 g/kg × 75 = 7,5 g/hari', near(sup('cre')[1][0], 7.5, 1e-9));
+check('Kreatin loading 0,3 g/kg × 75 = 22,5 g/hari', near(sup('cre')[2][0], 22.5, 1e-9));
+check('Karbohidrat pra-latihan 1–4 g/kg × 75 = 75–300 g; saat latihan 30–60 dan ≤90 g/jam', sup('cho')[0].join() === '75,300' && sup('cho')[3].join() === '30,60' && sup('cho')[4].join() === '90');
+check('Protein per makan 0,3–0,5 g/kg × 75 = 22,5–37,5 g; harian 1,6 g/kg = 120 g', near(sup('pro')[0][0], 22.5, 1e-9) && near(sup('pro')[0][1], 37.5, 1e-9) && near(sup('pro')[1][0], 120, 1e-9));
+check('Bikarbonat 15–30 g; optimal 22,5 g; natrium ±6,2 g', near(sup('bic')[0][0], 15, 1e-9) && near(sup('bic')[0][1], 30, 1e-9) && near(sup('bic')[1][0], 22.5, 1e-9) && near(sup('bic')[2][0], 22.5 * 23 / 84.007, 0.01));
+check('Beta-alanin 65 mg/kg × 75 = 4,9 g/hari', near(sup('ba')[0][0], 4.875, 1e-9));
+check('Nitrat tidak per kg (310–560 mg)', SUPPS.find(x => x.k === 'nit').rows(40)[0].v.join() === '310,560');
+check('Omega-3 tidak per kg (1000–6000 mg/hari)', SUPPS.find(x => x.k === 'o3').rows(NaN)[0].v.join() === '1000,6000');
 // Modul 6 — struktur NYPR
 check('NYPR: 13 segmen (6 belakang, 7 samping), tiap segmen skor 5/3/1', NYPR.length === 13 && NYPR.filter(x => x.view === 'back').length === 6 && NYPR.every(x => x.opts.map(o => o[0]).join() === '5,3,1'));
 check('NYPR: setiap pilihan punya ilustrasi SVG', NYPR.every(x => x.opts.every(o => o[2]().includes('<'))));
