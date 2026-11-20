@@ -437,7 +437,7 @@ function skrAha() {
       <span class="hint">${esc(t().popLbl)}: ${esc(t().ahaPop)}</span>
       ${linkBtn(LINKS.ppe, 'link', t().ppeLink)}
       <span class="hint">${esc(t().ppeNote)}</span>
-      ${fxBtn('aha', true)}${UI.mfx.has('aha') ? `<div class="fbox" id="mfx-aha"><span class="k">${esc(t().fSource)}</span>${skrRefs(['maron', 'ppe'])}<span class="hint">${esc(t().doiNote)}</span></div>` : ''}
+      ${fxBtn('aha', true)}${UI.mfx.has('aha') ? `<div class="fbox" id="mfx-aha"><span class="k">${esc(t().fSource)}</span>${skrRefs(['maron', 'kim25', 'ppe'])}<span class="hint">${esc(t().doiNote)}</span></div>` : ''}
     </section>`;
 }
 function skrCopy() {
@@ -790,7 +790,7 @@ function m5Out(s) {
       ${r.outAge ? `<div class="note">${svg('alert', '#9A3412')}<span>${esc(T.eqAge)} (${E.age[0]}–${E.age[1]} ${t().yearsShort})</span></div>` : ''}
       <span class="hint">${esc(t().popLbl)}: ${esc(E.pop[lang])}</span>
       <button type="button" class="btn-sec" data-useffm>${svg('copy', '#9A3412', 18)}<span>${esc(UI.ffmCopied ? T.usedFfm : T.useFfm)}</span></button>
-      ${fxBtn('fat')}${UI.mfx.has('fat') ? fxBox510('fat', [...fxL, lang === 'id' ? 'FFM = BB × (1 − %lemak/100); BB target = FFM / (1 − target%/100)' : 'FFM = mass × (1 − %fat/100); target mass = FFM / (1 − target%/100)'], sL, [...E.refs, 'ackland']) : ''}`;
+      ${fxBtn('fat')}${UI.mfx.has('fat') ? fxBox510('fat', [...fxL, lang === 'id' ? 'FFM = BB × (1 − %lemak/100); BB target = FFM / (1 − target%/100)' : 'FFM = mass × (1 − %fat/100); target mass = FFM / (1 − target%/100)'], sL, [...E.refs, 'ackland', 'mathisen']) : ''}`;
   }
   return `${card('h-fat', T.pctFat, 'ffm', inner, false)}${copyCard(m5Copy())}`;
 }
@@ -841,7 +841,7 @@ function m10Out(s) {
     ${fxBtn('sw')}${UI.mfx.has('sw') ? fxBox510('sw', lang === 'id'
       ? ['Kehilangan keringat (L) = BB sebelum − BB sesudah + cairan diminum − urine', 'Sweat rate (L/jam) = kehilangan keringat / durasi (jam)', '% perubahan BB = (BB sebelum − BB sesudah) / BB sebelum × 100', '1 kg perubahan BB dianggap ±1 L cairan']
       : ['Sweat loss (L) = mass before − mass after + fluid drunk − urine', 'Sweat rate (L/h) = sweat loss / duration (h)', '% mass change = (before − after) / before × 100', '1 kg of mass change is taken as ~1 L of fluid'],
-      [`${num(s.v.pre, 1)} − ${num(s.v.post, 1)} + ${num(s.v.fluid, 2)} − ${num(r.urine, 2)} = ${num(r.loss, 2)} L`, `${num(r.loss, 2)} / ${num(r.hrs, 2)} = ${num(r.rate, 2)} ${T.rateUnit}`], ['sawka', 'nata', 'eah']) : ''}`;
+      [`${num(s.v.pre, 1)} − ${num(s.v.post, 1)} + ${num(s.v.fluid, 2)} − ${num(r.urine, 2)} = ${num(r.loss, 2)} L`, `${num(r.loss, 2)} / ${num(r.hrs, 2)} = ${num(r.rate, 2)} ${T.rateUnit}`], ['sawka', 'nata', 'racinais', 'eah']) : ''}`;
   return `${card('h-sw', T.rateRow, 'sweat', inner, false)}${copyCard(m10Copy())}`;
 }
 function m10Copy() {
@@ -949,7 +949,7 @@ function m7Copy() {
   const w = parse(S.base.weight); if (S.base.weight === '' || m1State().allErr.weight || !Number.isFinite(w)) return null;
   const lines = SUPPS.map(sp => `${sp.name[lang]}: ${sp.rows(w).map(([lbl, vals, unit]) => `${lbl[lang]} = ${fmtDose(vals, unit)}`).join('; ')}`);
   lines.push(lang === 'id' ? 'Catatan: risiko kontaminasi anti-doping; uji saat latihan dulu' : 'Note: anti-doping contamination risk; trial in training first');
-  return baseCopy('m7', lines, 'IOC 2018; ISSN 2017/2021');
+  return baseCopy('m7', lines, 'IOC 2018; ISSN 2017/2021/2025');
 }
 function renderM7() {
   const T = T7(), { head } = modHeader('m7'), s = m1State();

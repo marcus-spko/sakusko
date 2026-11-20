@@ -103,7 +103,9 @@ check('H:Q fungsional 190/200 = 0,95', near(hqRatio(190, 200), 0.95, 1e-9));
 // Modul 7 — contoh Kartu Spesifikasi v0.1.1 (75 kg)
 const sup = k => SUPPS.find(x => x.k === k).rows(75);
 check('Kafein 75 kg = 225–450 mg', sup('caf')[0][1][0] === 225 && sup('caf')[0][1][1] === 450);
-check('Kreatin loading 0,3 g/kg × 75 = 22,5 g/hari', near(sup('cre')[0][1][0], 22.5, 1e-9));
+check('Kreatin tanpa loading = 3–5 g/hari', sup('cre')[0][1][0] === 3 && sup('cre')[0][1][1] === 5);
+check('Kreatin 0,1 g/kg × 75 = 7,5 g/hari', near(sup('cre')[1][1][0], 7.5, 1e-9));
+check('Kreatin loading 0,3 g/kg × 75 = 22,5 g/hari', near(sup('cre')[2][1][0], 22.5, 1e-9));
 check('Bikarbonat 15–30 g; optimal 22,5 g', near(sup('bic')[0][1][0], 15, 1e-9) && near(sup('bic')[0][1][1], 30, 1e-9) && near(sup('bic')[1][1][0], 22.5, 1e-9));
 check('Beta-alanin 65 mg/kg × 75 = 4,9 g/hari', near(sup('ba')[0][1][0], 4.875, 1e-9));
 check('Nitrat tidak per kg (310–560 mg)', SUPPS.find(x => x.k === 'nit').rows(40)[0][1].join() === '310,560');
