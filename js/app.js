@@ -1,18 +1,19 @@
 // SakuSKO — aplikasi utama. Tanpa server, tanpa penyimpanan data pasien.
 import { HRMAX, HRMAX_ORDER, hrmax, hrmaxApplies, acsmZones, karvonen, LIMITS, rmEpley, rmBrzycki, NUZZO, round05,
-  rmrTenHaaf, rmrTenHaafFfm, rmrMifflin, rmrHarrisRev, rmrCunningham, energyAvail, CHO, PROTEIN, FAT_PCT, PAL_BANDS,
+  rmrTenHaaf, rmrMifflin, rmrCunningham, energyAvail, CHO, PROTEIN, FAT_PCT, PAL_BANDS,
   bmi, bmiCat, centralObese, whtr, whr, whrHigh,
-  siri, jp3Men, jpw3Women, dwRow, dwDensity, hastutiS4, hastutiAbd, ffmFrom, targetWeight, endomorphy, mesomorphy, hwr, ectomorphy, somatoXY,
+  siri, jp3Men, jpw3Women, dwRow, dwDensity, hastutiAbd, ffmFrom, targetWeight, endomorphy, mesomorphy, hwr, ectomorphy, somatoXY, somatoCategory,
   sweatLoss, sweatRate, bmChangePct, lsiDist, lsiTime, hqRatio } from './formulas.js';
 import { TESTS, REF, RM_INFO } from './tests.js';
 import { M48_REF, M4_FIELDS, M8_FIELDS, M48_T } from './m48.js';
-import { M510_REF, SITES, EQS, EQ_ORDER, SOMATO_SITES, M10_FIELDS, M510_T } from './m510.js';
+import { M510_REF, SITES, EQS, EQ_ORDER, SOMATO_SITES, M10_FIELDS, M510_T, GUIDE, GUIDE_GENERAL, GUIDE_SRC, SOMATO_CAT } from './m510.js';
 import { NYPR, nyprSvg, NYPR_REF } from './nypr.js';
 import { M79_REF, SUPPS, LSI_ROWS, HQ_FIELDS, M79_T } from './m79.js';
 import { MODULES, T, M1_FORMULAS, KARVONEN_REF, GLOSSARY, ABOUT } from './i18n.js';
 import { S, load, save, clear, expireIfDue, expiresAt, isEmpty } from './session.js';
 import { startTitleCase } from './titlecase.js';
-import { SKR_REF, LINKS, ACSM_Q, ACSM_Q_INTENT, ACSM_Q_CLEAR, acsmResult, ACSM_ALWAYS, PARQ_OUT, AHA14, AHA_GROUPS } from './screening.js';
+import { SKR_REF, LINKS, ACSM_Q, ACSM_Q_INTENT, ACSM_Q_CLEAR, acsmResult, ACSM_ALWAYS, AHA14, AHA_GROUPS } from './screening.js';
+import { PARQ_FORM, parqStatus } from './parq.js';
 
 // ---------- Ikon (garis, tanpa emoji) ----------
 const ICONS = {
@@ -52,7 +53,7 @@ let offline = 'wait';           // 'wait' | 'ready' | 'none'
 let installEvt = null;
 let query = '';
 // Data pemeriksaan ada di S (session.js); UI hanya status tampilan
-const UI = { open: new Set(), karvOpen: false, touched: new Set(), measWasOk: undefined, copy: null, flash: '', clearArmed: false, mfx: new Set(), rmMeasWas: undefined };
+const UI = { guide: new Set(), open: new Set(), karvOpen: false, touched: new Set(), measWasOk: undefined, copy: null, flash: '', clearArmed: false, mfx: new Set(), rmMeasWas: undefined };
 const loaded = load();
 if (loaded === 'expired') UI.flash = 'expired';
 
@@ -141,7 +142,7 @@ function m1State() {
   if (S.base.weight !== '' && !inR(w, LIMITS.weight)) err.weight = t().errRange(...LIMITS.weight);
   if (S.base.height !== '' && !inR(h, LIMITS.height)) err.height = t().errRange(...LIMITS.height);
   const shown = Object.fromEntries(Object.entries(err).filter(([k]) => UI.touched.has(k)));
-  const ok = S.base.age !== '' && !err.age && !!S.base.sex;            // HRmax hanya butuh usia (+ jenis kelamin untuk Gulati)
+  const ok = S.base.age !== '' && !err.age;                           // HRmax hanya butuh usia
   const restOk = ok && S.m1.hrRest !== '' && !err.hrRest;          // zona Karvonen butuh denyut istirahat
   const measOk = ok && S.m1.hrMeas !== '' && !err.hrMeas;
   return { age, hrRest, hrMeas, err: shown, allErr: err, ok, restOk, measOk };
@@ -188,7 +189,6 @@ function renderM1() {
 function m1Fields(s) {
   return `<div style="display:flex;flex-direction:column;gap:14px">
     ${field('age', t().age, t().years, S.base.age, { err: s.err.age })}
-    ${sexField()}
     ${field('hrRest', t().hrRest, t().bpm, S.m1.hrRest, { req: false, tag: t().forZones, hint: t().hrRestHint, def: 'hrrest', err: s.err.hrRest })}
     ${field('hrMeas', t().hrMeas, t().bpm, S.m1.hrMeas, { req: false, hint: t().hrMeasHint, def: 'hrmeas', err: s.err.hrMeas })}</div>`;
 }
@@ -229,7 +229,7 @@ function m1Out(s) {
         ${info.ref ? `<span class="k">${esc(t().fSource)}</span><span class="r">${esc(info.ref)} <a href="https://doi.org/${info.doi}" target="_blank" rel="noopener">doi:${info.doi}</a></span><span class="hint">${esc(t().doiNote)}</span>` : ''}
       </div>` : '';
     return `<div class="frow ${on ? '' : 'off'}"><div class="frow-main"><div class="frow-name">${esc(HRMAX[k].name)}${S.m1.basis === k ? `<span class="badge">${esc(t().base)}</span>` : ''}</div>
-        <span class="hint">${esc(on ? info.pop[lang] : t().womenOnly)}</span></div><span class="frow-val">${v}</span></div>
+        <span class="hint">${esc(info.pop[lang])}</span></div><span class="frow-val">${v}</span></div>
       <button type="button" class="linkbtn" data-fx="${k}" aria-expanded="${open}" aria-controls="fx-${k}">${esc(open ? t().hideFormula(HRMAX[k].name) : t().showFormula(HRMAX[k].name))}${svg('chev', '#9A3412', 16)}</button>${box}`;
   }).join('');
 
@@ -266,7 +266,7 @@ function m1Out(s) {
   return `<section class="card" aria-labelledby="h-est">
       <div class="lbl-row"><h2 class="h2" id="h-est">${esc(t().estHr)}</h2>${ibtn('hrmax', 'HRmax')}</div>
       <div class="big"><b>${num(lo)}–${num(hi)}</b><span>${esc(t().bpm)}</span></div>
-      <span class="hint" style="margin-top:-8px">${esc(t().rangeNote(keys.length, S.base.sex))}</span>
+      <span class="hint" style="margin-top:-8px">${esc(t().rangeNote(keys.length))}</span>
       <div>${rows}</div>
       <div class="note">${svg('alert', '#9A3412')}<span>${esc(t().accuracyWarn)}</span></div>
     </section>
@@ -327,15 +327,94 @@ function skrAcsm() {
 }
 const skrRefs = keys => keys.map(k => `<span class="r">${esc(SKR_REF[k].ref)}${SKR_REF[k].doi ? ` <a href="https://doi.org/${SKR_REF[k].doi}" target="_blank" rel="noopener">doi:${SKR_REF[k].doi}</a>` : ''}</span>`).join('');
 const linkBtn = (href, icon, label, ext = false) => `<a class="btn-sec" href="${href}" target="_blank" rel="noopener">${svg(icon, '#9A3412', 18)}<span>${esc(label)}</span></a>${ext ? '' : ''}`;
+// PAR-Q+ digital: teks kata per kata dari formulir resmi (lihat parq.js)
+const pqForm = () => PARQ_FORM[S.skr.pqLang || lang];
+const pqVerShort = () => ((S.skr.pqLang || lang) === 'id' ? 'PAR-Q+ 2020 (versi Indonesia)' : 'PAR-Q+ 2025');
+function pqSeg(key, val, lid, F) {
+  return `<div class="seg" role="group" aria-labelledby="${lid}">
+    <button type="button" data-pq="${key}" data-v="y" aria-pressed="${val === 'y'}">${esc(F.yes)}</button>
+    <button type="button" data-pq="${key}" data-v="n" aria-pressed="${val === 'n'}">${esc(F.no)}</button></div>`;
+}
+const pqList = (key, label) => `<label class="field pqlist"><span class="qtext pqcap">${esc(label)}</span>
+  <span class="inbox"><input type="text" data-pqtxt="${key}" maxlength="200" autocomplete="off" value="${esc(S.skr.pq.txt[key] || '')}" placeholder="${esc(t().pqListPh)}"></span></label>`;
+const pqUl = items => `<ul>${items.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`;
+function pqDecl(d) {
+  return `<div class="pqbox"><span class="qtext pqcap">${esc(d.head)}</span>${pqUl(d.bullets)}<span class="pqtext">${esc(d.text)}</span>
+    <span class="hint">${esc(d.fields)}</span><span class="hint">${esc(t().pqSignNote)}</span></div>`;
+}
 function skrParq() {
-  return `<section class="card" aria-labelledby="h-pq"><h2 class="h2" id="h-pq">${esc(t().parqHead)}</h2>
+  const F = pqForm(), a = S.skr.pq, st = parqStatus(F, a), cur = S.skr.pqLang || lang;
+  const gen = F.gen.map(q => {
+    const lid = `pq-g${q.n}`, v = a.g[q.n];
+    const chips = q.n === '1' && v === 'y' ? `<div class="optlist pqchips" role="group" aria-labelledby="${lid}">${F.q1parts.map((l, i) => `<button type="button" data-pqq1="${i}" aria-pressed="${!!a.q1[i]}">${esc(l)}</button>`).join('')}</div>` : '';
+    return `<div class="field pqq"><span class="qtext" id="${lid}"><b>${q.n})</b> ${esc(q.t)}</span>${q.note ? `<span class="hint">${esc(q.note)}</span>` : ''}
+      ${pqSeg(`g${q.n}`, v, lid, F)}${chips}${q.list && v === 'y' ? pqList(`g${q.n}`, q.list) : ''}</div>`;
+  }).join('');
+  let after = '';
+  if (!st.genDone) after = `<section class="card" style="margin-top:14px"><p class="empty" style="margin:0">${esc(t().pqAnswerGen)}</p></section>`;
+  else if (st.stage === 'p1clear') {
+    after = `<section class="card" style="margin-top:14px" aria-label="${esc(t().result)}">
+      <div class="pqbox ok" role="status">${F.p1Clear.head.map(h => `<span class="qtext pqcap">${esc(h)}</span>`).join('')}${pqUl(F.p1Clear.items)}</div>
+      ${pqDecl(F.decl1)}
+      <div class="pqbox warn"><span class="qtext pqcap">${esc(F.delay1.head)}</span>${pqUl(F.delay1.items)}</div></section>`;
+  } else {
+    const secs = F.fu.map(sec => {
+      const lid = `pq-f${sec.n}`, v = a.f[sec.n];
+      const subs = v === 'y' ? `<div class="pqsubs">${sec.subs.map(x => `<div class="field"><span class="qtext" id="pq-f${x.n}"><b>${x.n}.</b> ${esc(x.t)}</span>${pqSeg(`f${x.n}`, a.f[x.n], `pq-f${x.n}`, F)}</div>`).join('')}
+        ${sec.list ? pqList('f10', sec.list) : ''}</div>` : '';
+      return `<div class="field pqq"><span class="qtext" id="${lid}"><b>${sec.n}.</b> ${esc(sec.t)}</span><span class="hint">${esc(sec.ifYes)} · ${esc(sec.ifNo)}</span>${pqSeg(`f${sec.n}`, v, lid, F)}${subs}</div>`;
+    }).join('');
+    let p4 = '';
+    if (st.stage === 'fu') p4 = `<p class="empty" style="margin:0">${esc(t().pqAnswerFu)}</p>`;
+    else p4 = `<div class="pqbox info"><span class="qtext pqcap">${esc(F.goP4)}</span></div>
+      ${st.stage === 'p4clear' ? `<div class="pqbox ok" role="status"><span class="qtext pqcap">${esc(F.p4Clear.head)}</span>${pqUl(F.p4Clear.items)}</div>`
+        : `<div class="pqbox stop" role="status"><span class="qtext pqcap">${esc(F.p4Yes.head)}</span><span class="pqtext">${esc(F.p4Yes.text)}</span></div>`}
+      <div class="pqbox warn"><span class="qtext pqcap">${esc(F.delay4.head)}</span>${pqUl(F.delay4.items)}</div>
+      ${pqUl(F.notes).replace('<ul>', '<ul class="pqnotes">')}
+      ${pqDecl(F.decl4)}`;
+    after = `<section class="card" style="margin-top:14px"><div class="pqbox stop"><span class="qtext pqcap">${esc(F.p1Yes)}</span></div></section>
+      <section class="card" style="margin-top:14px" aria-labelledby="h-pqf"><h2 class="h2 pqhead" id="h-pqf">${esc(F.fuHead)}</h2>
+      <div style="display:flex;flex-direction:column;gap:16px">${secs}</div></section>
+      <section class="card" style="margin-top:14px" aria-label="${esc(t().result)}">${p4}</section>`;
+  }
+  const src = UI.mfx.has('parq') ? `<div class="fbox" id="mfx-parq">${F.info.map(x => `${x.h ? `<span class="k">${esc(x.h)}</span>` : ''}<span class="r">${esc(x.t)}</span>`).join('')}
+      <span class="k">${esc(F.refsHead)}</span>${F.refs.map(r => `<span class="r">${esc(r)}</span>`).join('')}
+      <span class="k">${esc(t().fSource)}</span>${skrRefs(['parq', 'parqId'])}<span class="hint">${esc(t().doiNote)}</span></div>` : '';
+  return `<section class="card" aria-labelledby="h-pq"><h2 class="h2" id="h-pq">${esc(F.title)}</h2>
+      <span class="qtext pqcap">${esc(F.subtitle)}</span>
+      <div class="field"><span class="lbl" id="pqVer">${esc(t().pqForm)}</span><div class="seg" role="group" aria-labelledby="pqVer">
+        <button type="button" data-pqlang="id" aria-pressed="${cur === 'id'}">${esc(t().pqVerId)}</button><button type="button" data-pqlang="en" aria-pressed="${cur === 'en'}">${esc(t().pqVerEn)}</button></div>
+        <span class="hint">${esc(F.version)}</span></div>
+      <span class="pqtext">${esc(F.intro)}</span>
+      <div class="note">${svg('info', '#9A3412')}<span>${esc(t().pqAppNote)}</span></div></section>
+    <section class="card" style="margin-top:14px" aria-labelledby="h-pqg"><h2 class="h2 pqhead" id="h-pqg">${esc(F.genHead)}</h2>
+      <span class="hint">${esc(F.genInstr)}</span>
+      <div style="display:flex;flex-direction:column;gap:16px">${gen}</div></section>
+    ${after}
+    <section class="card" style="margin-top:14px" aria-labelledby="h-pqo"><h2 class="h2" id="h-pqo">${esc(t().parqHead)}</h2>
       ${linkBtn(LINKS.parq25, 'file', t().parqOpen25)}${linkBtn(LINKS.parqId, 'file', t().parqOpenId)}${linkBtn(LINKS.eparmed, 'link', t().parqEpar)}
-      <div class="note">${svg('alert', '#9A3412')}<span>${esc(t().parqRules)}</span></div>
       <span class="hint">${esc(t().parqIdNote)}</span>
-      ${fxBtn('parq', true)}${UI.mfx.has('parq') ? `<div class="fbox" id="mfx-parq"><span class="k">${esc(t().fSource)}</span>${skrRefs(['parq', 'parqId'])}<span class="hint">${esc(t().doiNote)}</span></div>` : ''}</section>
-    <section class="card" aria-labelledby="h-pr" style="margin-top:14px"><div class="lbl-row"><h2 class="h2" id="h-pr">${esc(t().parqRecord)}</h2><span class="opt">${esc(t().optional)}</span></div>
-      <div class="optlist" role="group" aria-labelledby="h-pr">${PARQ_OUT.map(([k, l]) => `<button type="button" data-parq="${k}" aria-pressed="${S.skr.parq === k}">${esc(l[lang])}</button>`).join('')}</div>
-      <span class="hint">${esc(t().parqRecordHint)}</span></section>`;
+      ${fxBtn('parq', true)}${src}
+      <button type="button" class="linkbtn" data-pqreset>${esc(t().pqReset)}</button></section>`;
+}
+function pqCopyLines() {
+  const F = pqForm(), a = S.skr.pq, st = parqStatus(F, a);
+  if (!st.genDone) return [];
+  const yesGen = F.gen.filter(q => a.g[q.n] === 'y').map(q => {
+    const extra = [...(q.n === '1' ? F.q1parts.filter((l, i) => a.q1[i]) : []), ...(q.list && a.txt[`g${q.n}`] ? [a.txt[`g${q.n}`].trim()] : [])].filter(Boolean);
+    return `${q.n}${extra.length ? ` (${extra.join('; ')})` : ''}`;
+  });
+  const lines = [`${pqVerShort()} — ${t().pqGen}: ${yesGen.length ? `${F.yes} ${t().pqOn} ${yesGen.join(', ')}` : t().pqAllNo(F.no)}`];
+  if (st.stage === 'p1clear') lines.push(`${t().pqResult}: ${F.p1Clear.head[0]}`);
+  else {
+    const cond = F.fu.filter(sec => a.f[sec.n] === 'y').map(sec => sec.n);
+    if (st.stage === 'fu') lines.push(t().pqFuIncomplete);
+    else {
+      lines.push(`${t().pqFu}: ${cond.length ? `${t().pqCond} ${cond.join(', ')}` : t().pqNoCond}${st.fuYes.length ? `; ${F.yes} ${t().pqOn} ${st.fuYes.join(', ')}` : cond.length ? `; ${t().pqAllNo(F.no)}` : ''}${a.f['10'] === 'y' && a.txt.f10 ? ` (${a.txt.f10.trim()})` : ''}`);
+      lines.push(`${t().pqResult}: ${st.stage === 'p4yes' ? `${F.p4Yes.head} ${F.p4Yes.text}` : F.p4Clear.head.replace(/:\s*$/, '.')}`);
+    }
+  }
+  return lines;
 }
 function ahaState() {
   const ans = S.skr.aha, answered = AHA14.filter(x => ans[x.k]).length, pos = AHA14.filter(x => ans[x.k] === 'y');
@@ -370,11 +449,11 @@ function skrCopy() {
     if (acsmNeedIntent() && a.intent === 'vig' && a.cleared) parts.push(`${t().acsmAns.cleared} ${yn(a.cleared)}`);
     lines.push(t().copyAcsm(parts.join('; '), r[lang]));
   }
-  if (a.parq) lines.push(t().copyParq(PARQ_OUT.find(o => o[0] === a.parq)[1][lang]));
+  const pql = pqCopyLines(); lines.push(...pql);
   const st = ahaState();
   if (st.answered === st.n) lines.push(t().copyAha(st.answered, st.n, st.pos.length ? `${t().ahaPos(st.pos.length)}: ${st.pos.map(x => x[lang]).join('; ')}` : t().ahaNone));
   if (!lines.length) return null;
-  const refs = [r ? 'Riebe 2015' : '', a.parq ? 'PAR-Q+ 2025' : '', st.answered === st.n ? 'Maron (AHA/ACC) 2014' : ''].filter(Boolean).join('; ');
+  const refs = [r ? 'Riebe 2015' : '', pql.length ? pqVerShort() : '', st.answered === st.n ? 'Maron (AHA/ACC) 2014' : ''].filter(Boolean).join('; ');
   const body = [...lines, t().srcLine(refs), t().skrNote];
   const bs = baseSummary();
   const text = [t().copyHeaderMod(0, t().skrTitle, todayStr()).replace(/Modul 0 |Module 0 /, ''), ...(bs ? [`${t().baseLabel}: ${bs}`] : []), ...body].join('\n');
@@ -446,10 +525,8 @@ function m4Calc(s) {
   if (!s.ok) return null;
   const r = { eq: {} };
   r.eq.th = rmrTenHaaf(b.weight, b.height / 100, b.age, male);
-  if (Number.isFinite(v.ffm)) r.eq.thf = rmrTenHaafFfm(v.ffm);
-  r.eq.mif = rmrMifflin(b.weight, b.height, b.age, male);
-  r.eq.hb = rmrHarrisRev(b.weight, b.height, b.age, male);
   if (Number.isFinite(v.ffm)) r.eq.cun = rmrCunningham(v.ffm);
+  r.eq.mif = rmrMifflin(b.weight, b.height, b.age, male);
   if (!r.eq[S.m4.basis]) S.m4.basis = 'th';
   r.basis = S.m4.basis; r.rmr = r.eq[r.basis];
   if (Number.isFinite(v.pal)) { r.pal = v.pal; r.tdee = r.rmr * v.pal; r.band = PAL_BANDS.find(x => v.pal >= x.lo && v.pal <= x.hi + 0.005)?.k; }
@@ -466,20 +543,18 @@ function m4Out(s) {
   const T = tt(), r = m4Calc(s), b = s.b, male = b.sex === 'M';
   if (!r) return card('h-rmr', T.rmrHead, 'rmr', emptyP(t().needBase(s.missing.map(k => t().baseNames[k]).join(', '))), false);
   const row = (k, val, badge) => `<div class="frow ${r.eq[k] ? '' : 'off'}"><div class="frow-main"><div class="frow-name" style="font-size:14px">${esc(T.eq[k])}${badge ? `<span class="badge">${esc(badge)}</span>` : ''}</div></div><span class="frow-val" style="font-size:17px">${val}</span></div>`;
-  const rows = ['th', 'thf', 'mif', 'hb', 'cun'].map(k => row(k, r.eq[k] ? `${num(r.eq[k])} <small>${esc(T.kcal)}</small>` : `<span class="opt">${esc(T.needFfm)}</span>`, k === 'th' ? T.main : '')).join('');
+  const rows = ['th', 'cun', 'mif'].map(k => row(k, r.eq[k] ? `${num(r.eq[k])} <small>${esc(T.kcal)}</small>` : `<span class="opt">${esc(T.needFfm)}</span>`, k === 'th' ? T.main : '')).join('');
   const fRmr = lang === 'id'
-    ? ['Ten Haaf (BB): 11,936×BB + 587,728×TB(m) − 8,129×usia + 191,027×JK + 29,279', 'Ten Haaf (FFM): 22,771×FFM + 484,264',
-      'Mifflin-St Jeor: 10×BB + 6,25×TB(cm) − 5×usia + 5 (pria) / − 161 (wanita)', 'Harris-Benedict revisi, pria: 88,362 + 13,397×BB + 4,799×TB(cm) − 5,677×usia',
-      'Harris-Benedict revisi, wanita: 447,593 + 9,247×BB + 3,098×TB(cm) − 4,330×usia', 'Cunningham: 500 + 22×FFM', 'BB = berat badan (kg); TB = tinggi badan; JK: pria = 1, wanita = 0']
-    : ['Ten Haaf (mass): 11.936×W + 587.728×H(m) − 8.129×age + 191.027×sex + 29.279', 'Ten Haaf (FFM): 22.771×FFM + 484.264',
-      'Mifflin-St Jeor: 10×W + 6.25×H(cm) − 5×age + 5 (men) / − 161 (women)', 'Revised Harris-Benedict, men: 88.362 + 13.397×W + 4.799×H(cm) − 5.677×age',
-      'Revised Harris-Benedict, women: 447.593 + 9.247×W + 3.098×H(cm) − 4.330×age', 'Cunningham: 500 + 22×FFM', 'W = body mass (kg); H = height; sex: male = 1, female = 0'];
+    ? ['Ten Haaf (BB): 11,936×BB + 587,728×TB(m) − 8,129×usia + 191,027×JK + 29,279', 'Cunningham: 500 + 22×FFM',
+      'Mifflin-St Jeor: 10×BB + 6,25×TB(cm) − 5×usia + 5 (pria) / − 161 (wanita)', 'BB = berat badan (kg); TB = tinggi badan; JK: pria = 1, wanita = 0']
+    : ['Ten Haaf (mass): 11.936×W + 587.728×H(m) − 8.129×age + 191.027×sex + 29.279', 'Cunningham: 500 + 22×FFM',
+      'Mifflin-St Jeor: 10×W + 6.25×H(cm) − 5×age + 5 (men) / − 161 (women)', 'W = body mass (kg); H = height; sex: male = 1, female = 0'];
   const cf = c => (lang === 'id' ? String(c).replace('.', ',') : String(c));
   const sRmr = [`Ten Haaf: ${cf(11.936)}×${num(b.weight, 1)} + ${cf(587.728)}×${num(b.height / 100, 2)} − ${cf(8.129)}×${num(b.age)} + ${cf(191.027)}×${male ? 1 : 0} + ${cf(29.279)} = ${num(r.eq.th)}`];
   const rmrCard = card('h-rmr', T.rmrHead, 'rmr', `${rows}
     ${r.outAge ? `<div class="note">${svg('alert', '#9A3412')}<span>${esc(T.tenHaafAge)}</span></div>` : ''}
-    <span class="hint">${esc(t().popLbl)}: ${esc(lang === 'id' ? 'Ten Haaf: 90 atlet rekreasional Belanda 18–35 th; meta-analisis 2023 (29 studi, 1.430 atlet) menilainya paling presisi; Mifflin-St Jeor cenderung meleset pada atlet.' : 'Ten Haaf: 90 Dutch recreational athletes aged 18–35; a 2023 meta-analysis (29 studies, 1,430 athletes) found it most precise; Mifflin-St Jeor tends to miss in athletes.')}</span>
-    ${fxBtn('rmr')}${UI.mfx.has('rmr') ? fxBox48('rmr', fRmr, sRmr, ['tenhaaf', 'oneill', 'mifflin', 'roza', 'cunningham']) : ''}`, false);
+    <span class="hint">${esc(t().popLbl)}: ${esc(lang === 'id' ? 'Ten Haaf: 90 atlet rekreasional Belanda 18–35 th; meta-analisis 2023 (29 studi, 1.430 atlet) menilainya paling presisi. Cunningham: butuh FFM; pada 125 atlet elit Malaysia meleset paling banyak ±6%. Mifflin-St Jeor: 498 dewasa sehat non-atlet; cenderung meleset pada atlet.' : 'Ten Haaf: 90 Dutch recreational athletes aged 18–35; a 2023 meta-analysis (29 studies, 1,430 athletes) found it most precise. Cunningham: needs FFM; within ±6% in 125 Malaysian elite athletes. Mifflin-St Jeor: 498 healthy non-athlete adults; tends to miss in athletes.')}</span>
+    ${fxBtn('rmr')}${UI.mfx.has('rmr') ? fxBox48('rmr', fRmr, sRmr, ['tenhaaf', 'oneill', 'cunningham', 'wong', 'mifflin']) : ''}`, false);
   const bopts = Object.keys(r.eq).map(k => `<option value="${k}" ${r.basis === k ? 'selected' : ''}>${esc(T.eq[k])} · ${num(r.eq[k])}</option>`).join('');
   const tdeeInner = !r.tdee ? emptyP(T.tdeeNeed) : `<label class="field"><span class="lbl">${esc(T.tdeeBasis)}</span><select class="sel" id="rmrBasis">${bopts}</select></label>
     <div class="big"><b>${num(r.tdee)}</b><span>${esc(T.kcal)}</span></div>
@@ -490,7 +565,7 @@ function m4Out(s) {
   const macro = `${choSeg}
     ${r.cho ? kvRow(T.choRow, `${rng(r.cho[0][1], r.cho[1][1])} ${gday}`) : emptyP(T.choNeed)}
     ${kvRow(T.proRow, `${rng(r.pro[0][1], r.pro[1][1])} ${gday}`)}
-    ${r.fat ? kvRow(T.fatRow, `${rng(r.fat[0], r.fat[1])} ${gday}`) : `<span class="hint">${esc(T.fatNeed)}</span>`}
+    ${r.fat ? kvRow(T.fatRow, `${rng(r.fat[0], r.fat[1])} ${gday}`) : `${kvRow(T.fatRow, T.fatNeedShort)}<span class="hint">${esc(T.fatNeed)}</span>`}
     <div class="note">${svg('info', '#9A3412')}<span>${esc(T.macroNote)}</span></div>
     ${fxBtn('mac')}${UI.mfx.has('mac') ? fxBox48('mac', [lang === 'id' ? 'Karbohidrat: 3–5 / 5–7 / 6–10 / 8–12 g/kg/hari sesuai beban latihan' : 'Carbohydrate: 3–5 / 5–7 / 6–10 / 8–12 g/kg/day by training load',
       lang === 'id' ? 'Protein: 1,2–2,0 g/kg/hari' : 'Protein: 1.2–2.0 g/kg/day', lang === 'id' ? 'Lemak: 20–35% energi; 1 g lemak = 9 kkal' : 'Fat: 20–35% of energy; 1 g fat = 9 kcal'], [], ['thomas']) : ''}`;
@@ -582,7 +657,7 @@ function fxBox510(id, f, sLines, refs) {
 function m5Eq() {
   const sex = S.base.sex || 'M';
   const ok = k => EQS[k].sex === 'both' || EQS[k].sex === sex;
-  if (!S.m5.eq || !ok(S.m5.eq)) S.m5.eq = sex === 'F' ? 'dw' : 'hastuti';
+  if (!S.m5.eq || !EQS[S.m5.eq] || !ok(S.m5.eq)) S.m5.eq = sex === 'F' ? 'dw' : 'hastuti';
   return S.m5.eq;
 }
 function m5Sites() { return S.m5.tab === 'som' ? SOMATO_SITES : [...EQS[m5Eq()].sites, 'target']; }
@@ -615,15 +690,21 @@ function m5Fields(s) {
   for (const k of m5Sites()) {
     const f = SITES[k], id = fid('m5', 'x', k);
     out.push(field(id, f.label[lang], f.unit[lang], S.m5.v[`x.${k}`] ?? '', { req: !f.opt, hint: f.hint ? f.hint[lang] : '', err: s.err[id], dec: f.dec !== false, key: `x.${k}`, mod: 'm5' }));
+    const gk = k === 'abd' && S.m5.tab !== 'som' && m5Eq() === 'jp3' ? 'abdJp' : k;
+    if (GUIDE[gk]) {
+      const open = UI.guide.has(k);
+      out.push(`<button type="button" class="linkbtn guidebtn" data-guide="${k}" aria-expanded="${open}">${esc(open ? T5().hideHowTo : T5().howTo)}${svg('chev', '#9A3412', 16)}</button>${open ? `<div class="fbox guidebox"><span class="r">${esc(GUIDE[gk][lang])}</span></div>` : ''}`);
+    }
   }
+  const go = UI.guide.has('_gen');
+  out.push(`<button type="button" class="linkbtn guidebtn" data-guide="_gen" aria-expanded="${go}">${esc(T5().genTech)}${svg('chev', '#9A3412', 16)}</button>${go ? `<div class="fbox guidebox"><span class="r">${esc(GUIDE_GENERAL[lang])}</span><span class="hint">${esc(GUIDE_SRC[lang])}</span></div>` : ''}`);
   return `<div style="display:flex;flex-direction:column;gap:14px">${out.join('')}</div>`;
 }
 function m5FatCalc(s) {
   const eq = m5Eq(), E = EQS[eq], v = s.v, b = s.b;
   if (s.missing.length || !E.sites.every(k => Number.isFinite(v[k]))) return null;
   const sum = E.sites.reduce((a, k) => a + v[k], 0), r = { eq, sum };
-  if (eq === 'hastuti') r.pct = hastutiS4(sum, b.age);
-  else if (eq === 'hastutiAlt') r.pct = hastutiAbd(v.abd, v.tri, b.age);
+  if (eq === 'hastuti') r.pct = hastutiAbd(v.abd, v.tri, b.age);
   else {
     r.D = eq === 'dw' ? dwDensity(sum, b.age, b.sex) : eq === 'jp3' ? jp3Men(sum, b.age) : jpw3Women(sum, b.age);
     r.pct = siri(r.D);
@@ -637,25 +718,44 @@ function m5SomCalc(s) {
   const v = s.v, b = s.b;
   if (s.missing.length || !SOMATO_SITES.every(k => Number.isFinite(v[k]))) return null;
   const en = endomorphy(v.tri, v.sub, v.ss, b.height), me = mesomorphy(v.hum, v.fem, v.arm, v.tri, v.calfg, v.calf, b.height);
-  const h = hwr(b.height, b.weight), ec = ectomorphy(h), xy = somatoXY(en, me, ec);
-  return { en, me, ec, h, ...xy };
+  const h = hwr(b.height, b.weight), ec = ectomorphy(h), xy = somatoXY(en, me, ec), r1 = x => Math.round(x * 10) / 10;
+  return { en, me, ec, h, ...xy, cat: somatoCategory(r1(en), r1(me), r1(ec)) };
 }
 function somatochart(r, T) {
-  // Sumbu X = ekto − endo (−10…10), Y = 2·meso − (endo + ekto) (−12…16). Arah kutub mengikuti rumus koordinat.
-  const W = 300, H = 300, sx = x => 150 + x * 13, sy = y => 190 - y * 10.5;
-  const px = Math.max(-10, Math.min(10, r.x)), py = Math.max(-12, Math.min(16, r.y));
-  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(T.chartTitle)}: X ${num(r.x, 1)}, Y ${num(r.y, 1)}" style="max-width:320px;display:block;margin:0 auto">
-    <rect x="0" y="0" width="${W}" height="${H}" rx="14" fill="#FFF8F1"/>
-    ${[-8, -4, 4, 8].map(x => `<line x1="${sx(x)}" y1="16" x2="${sx(x)}" y2="${H - 16}" stroke="#FFE3CC"/>`).join('')}
-    ${[-8, -4, 4, 8, 12].map(y => `<line x1="12" y1="${sy(y)}" x2="${W - 12}" y2="${sy(y)}" stroke="#FFE3CC"/>`).join('')}
-    <line x1="${sx(0)}" y1="16" x2="${sx(0)}" y2="${H - 16}" stroke="#9A3412" stroke-width="1.2"/>
-    <line x1="12" y1="${sy(0)}" x2="${W - 12}" y2="${sy(0)}" stroke="#9A3412" stroke-width="1.2"/>
-    <text x="${sx(0) + 8}" y="30" font-size="12" font-weight="700" fill="#9A3412">↑ ${esc(T.chartMeso)}</text>
-    <text x="18" y="${H - 22}" font-size="12" font-weight="700" fill="#9A3412">↙ ${esc(T.chartEndo)}</text>
-    <text x="${W - 18}" y="${H - 22}" text-anchor="end" font-size="12" font-weight="700" fill="#9A3412">${esc(T.chartEcto)} ↘</text>
-    <text x="${W - 16}" y="${sy(0) - 6}" text-anchor="end" font-size="10" fill="#5C4F45">X</text><text x="${sx(0) + 6}" y="${H - 20}" font-size="10" fill="#5C4F45">Y</text>
-    <circle cx="${sx(px)}" cy="${sy(py)}" r="7" fill="#FF8A3D" stroke="#1C1206" stroke-width="2"/>
-    <text x="${sx(px)}" y="${sy(py) - 12}" text-anchor="middle" font-size="12" font-weight="800" fill="#1C1206">${num(r.en, 1)}-${num(r.me, 1)}-${num(r.ec, 1)}</text>
+  // Somatochart Carter: X = ekto − endo, Y = 2·meso − (endo + ekto). Bingkai menghubungkan kutub 7-1-1, 1-7-1, 1-1-7.
+  const W = 344, H = 444, sx = x => 176 + x * 17.5, sy = y => 238 - y * 17;
+  const P = (x, y) => `${sx(x).toFixed(1)} ${sy(y).toFixed(1)}`;
+  const px = Math.max(-8.5, Math.min(8.5, r.x)), py = Math.max(-10, Math.min(13.5, r.y));
+  const frame = `M${P(-6, -6)} Q${P(-5.5, 7)} ${P(0, 12)} Q${P(5.5, 7)} ${P(6, -6)} Q${P(0, -11.4)} ${P(-6, -6)} Z`;
+  const ticksX = [-8, -6, -4, -2, 2, 4, 6, 8], ticksY = [-10, -8, -6, -4, -2, 2, 4, 6, 8, 10, 12];
+  const grid = ticksX.map(x => `<line x1="${sx(x)}" y1="${sy(13.5)}" x2="${sx(x)}" y2="${sy(-10.5)}" stroke="#F3E3D3" stroke-width="0.8"/>`).join('')
+    + ticksY.map(y => `<line x1="${sx(-9)}" y1="${sy(y)}" x2="${sx(9)}" y2="${sy(y)}" stroke="#F3E3D3" stroke-width="0.8"/>`).join('');
+  const lab = (x, y, t, o = {}) => `<text x="${sx(x)}" y="${sy(y)}" text-anchor="${o.a || 'middle'}" font-size="${o.fs || 8}" ${o.it === false ? '' : 'font-style="italic"'} font-weight="${o.fw || 600}" fill="${o.c || '#5C4F45'}">${esc(t)}</text>`;
+  const two = (x, y, a, b) => lab(x, y + 0.3, a) + lab(x, y - 0.4, b);
+  const hex = `M${P(0, 2)} L${P(1, 1)} L${P(1, -1)} L${P(0, -2)} L${P(-1, -1)} L${P(-1, 1)} Z`;
+  const lbl = `${num(r.en, 1)}-${num(r.me, 1)}-${num(r.ec, 1)}`;
+  const lx = sx(px) + (px > 3 ? -10 : 10), anchor = px > 3 ? 'end' : 'start';
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(T.chartTitle)}: ${lbl}; X ${num(r.x, 1)}, Y ${num(r.y, 1)}" style="max-width:360px;display:block;margin:0 auto">
+    <defs><clipPath id="soclip"><path d="${frame}"/></clipPath></defs>
+    <rect x="0" y="0" width="${W}" height="${H}" rx="14" fill="#FFFFFF"/>${grid}
+    <line x1="${sx(-9)}" y1="${sy(0)}" x2="${sx(9)}" y2="${sy(0)}" stroke="#C9B8A8" stroke-width="1"/>
+    <line x1="${sx(0)}" y1="${sy(13.5)}" x2="${sx(0)}" y2="${sy(-10.5)}" stroke="#C9B8A8" stroke-width="1"/>
+    <path d="${frame}" fill="#FFF1E6"/>
+    <g clip-path="url(#soclip)" stroke="#9A3412" stroke-width="1" stroke-dasharray="4 3">
+      <line x1="${sx(0)}" y1="${sy(12)}" x2="${sx(0)}" y2="${sy(-12)}"/><line x1="${sx(-6)}" y1="${sy(-6)}" x2="${sx(6)}" y2="${sy(6)}"/><line x1="${sx(6)}" y1="${sy(-6)}" x2="${sx(-6)}" y2="${sy(6)}"/></g>
+    <path d="${hex}" fill="#FFE3CC" stroke="#E8A87C" stroke-width="1"/>
+    <path d="${frame}" fill="none" stroke="#1C1206" stroke-width="2"/>
+    ${two(-2.2, 5.6, 'Endomorphic', 'mesomorph')}${two(2.2, 5.6, 'Ectomorphic', 'mesomorph')}
+    ${two(-3.9, -0.2, 'Mesomorphic', 'endomorph')}${two(3.9, -0.2, 'Mesomorphic', 'ectomorph')}
+    ${two(-2.3, -6.6, 'Ectomorphic', 'endomorph')}${two(2.3, -6.6, 'Endomorphic', 'ectomorph')}
+    ${lab(0, -1.25, 'Central', { fs: 8, c: '#9A3412' })}
+    ${ticksX.map(x => `<text x="${sx(x)}" y="${sy(-10.5) + 12}" text-anchor="middle" font-size="8" fill="#5C4F45">${x}</text>`).join('')}
+    ${ticksY.map(y => `<text x="${sx(-9) - 4}" y="${sy(y) + 3}" text-anchor="end" font-size="8" fill="#5C4F45">${y}</text>`).join('')}
+    ${lab(0, 12.6, T.chartMeso, { fs: 10, fw: 800, c: '#1C1206', it: false })}
+    ${lab(-8.8, -9.7, T.chartEndo, { fs: 10, fw: 800, c: '#1C1206', it: false, a: 'start' })}${lab(8.8, -9.7, T.chartEcto, { fs: 10, fw: 800, c: '#1C1206', it: false, a: 'end' })}
+    <text x="${sx(9)}" y="${sy(0) - 4}" text-anchor="end" font-size="8" fill="#5C4F45">X</text><text x="${sx(0) + 4}" y="${sy(13.5) + 8}" font-size="8" fill="#5C4F45">Y</text>
+    <circle cx="${sx(px)}" cy="${sy(py)}" r="6.5" fill="#FF8A3D" stroke="#1C1206" stroke-width="2"/>
+    <text x="${lx}" y="${sy(py) - 8}" text-anchor="${anchor}" font-size="11" font-weight="800" fill="#1C1206" stroke="#FFFFFF" stroke-width="3" paint-order="stroke">${lbl}</text>
   </svg>`;
 }
 function m5Out(s) {
@@ -663,8 +763,8 @@ function m5Out(s) {
   if (S.m5.tab === 'som') {
     const r = m5SomCalc(s);
     const inner = !r ? emptyP(T.somNeed) : `<div class="big"><b>${num(r.en, 1)}-${num(r.me, 1)}-${num(r.ec, 1)}</b></div>
-      ${kvRow(T.endo, num(r.en, 1))}${kvRow(T.meso, num(r.me, 1))}${kvRow(T.ecto, num(r.ec, 1))}${kvRow(T.hwrRow, num(r.h, 1))}${kvRow(T.xy, `${num(r.x, 1)}; ${num(r.y, 1)}`)}
-      <h3 class="h2" style="font-size:15px;margin-top:6px">${esc(T.chartTitle)}</h3>${somatochart(r, T)}
+      ${kvRow(T.endo, num(r.en, 1))}${kvRow(T.meso, num(r.me, 1))}${kvRow(T.ecto, num(r.ec, 1))}${kvRow(T.hwrRow, num(r.h, 1))}${kvRow(T.xy, `${num(r.x, 1)}; ${num(r.y, 1)}`)}${kvRow(T.catRow, SOMATO_CAT[r.cat][0])}<span class="hint">${esc(SOMATO_CAT[r.cat][1][lang])}</span>
+      <h3 class="h2" style="font-size:15px;margin-top:6px">${esc(T.chartTitle)}</h3>${somatochart(r, T)}<span class="hint">${esc(T.catNote)}</span>
       <div class="note">${svg('info', '#9A3412')}<span>${esc(T.somNote)}</span></div>
       ${fxBtn('som')}${UI.mfx.has('som') ? fxBox510('som', [
         lang === 'id' ? 'Endomorfi = −0,7182 + 0,1451X − 0,00068X² + 0,0000014X³; X = (triseps + subskapula + supraspinale) × 170,18 / TB' : 'Endomorphy = −0.7182 + 0.1451X − 0.00068X² + 0.0000014X³; X = (triceps + subscapular + supraspinale) × 170.18 / height',
@@ -679,7 +779,7 @@ function m5Out(s) {
   else {
     const fx = r.D !== undefined
       ? [r.eq === 'dw' ? (lang === 'id' ? 'D = C − M × log₁₀(Σ4); C dan M menurut usia dan jenis kelamin' : 'D = C − M × log₁₀(Σ4); C and M by age and sex') : r.eq === 'jp3' ? 'D = 1,10938 − 0,0008267×S + 0,0000016×S² − 0,0002574×usia' : 'D = 1,0994921 − 0,0009929×S + 0,0000023×S² − 0,0001392×usia', 'Siri: %lemak = 495/D − 450']
-      : [r.eq === 'hastuti' ? '%lemak = 7,579 + 0,237×Σ4 + 0,073×usia' : '%lemak = 8,000 + 0,402×abdomen + 0,486×triseps + 0,059×usia'];
+      : ['%lemak = 8,000 + 0,402×abdomen + 0,486×triseps + 0,059×usia'];
     const fxL = lang === 'id' ? fx : fx.map(x => x.replace(/(\d),(\d)/g, '$1.$2').replace(/usia/g, 'age').replace(/%lemak/g, '%fat').replace('abdomen', 'abdominal').replace('triseps', 'triceps'));
     const row = r.eq === 'dw' ? dwRow(s.b.age, s.b.sex) : null;
     const sL = [`Σ = ${n1(r.sum)} mm`, ...(row ? [`C = ${num(row[2], 4)}, M = ${num(row[3], 4)} (${row[0]}–${row[1]} ${t().yearsShort})`] : []), ...(r.D !== undefined ? [`D = ${num(r.D, 5)}`] : []), `%lemak = ${num(r.pct, 1)}`.replace('%lemak', lang === 'id' ? '%lemak' : '%fat'), `FFM = ${num(s.b.weight, 1)} × (1 − ${num(r.pct, 1)}/100) = ${num(r.ffm, 1)} kg`];
@@ -700,10 +800,10 @@ function m5Copy() {
   if (r) {
     const E = EQS[r.eq];
     lines.push(`${E.name[lang]}: Σ ${n1(r.sum)} mm → ${num(r.pct, 1)}% ${lang === 'id' ? 'lemak' : 'fat'}; FFM ${num(r.ffm, 1)} kg${r.tw !== undefined ? `; ${lang === 'id' ? 'BB target' : 'target mass'} (${n1(s.v.target)}% ${lang === 'id' ? 'lemak' : 'fat'}) ${num(r.tw, 1)} kg` : ''}${r.outAge ? (lang === 'id' ? ' (usia di luar populasi asal)' : ' (age outside derivation sample)') : ''}`);
-    src.push({ hastuti: 'Hastuti 2013', hastutiAlt: 'Hastuti 2013', dw: 'Durnin & Womersley 1974', jp3: 'Jackson & Pollock 1978', jpw3: 'Jackson, Pollock & Ward 1980' }[r.eq]);
+    src.push({ hastuti: 'Hastuti 2013', dw: 'Durnin & Womersley 1974', jp3: 'Jackson & Pollock 1978', jpw3: 'Jackson, Pollock & Ward 1980' }[r.eq]);
   }
   const so = m5SomCalc(s);
-  if (so) { lines.push(`${T.somRating} Heath-Carter: ${num(so.en, 1)}-${num(so.me, 1)}-${num(so.ec, 1)} (X ${num(so.x, 1)}; Y ${num(so.y, 1)})`); src.push('Carter 2002'); }
+  if (so) { lines.push(`${T.somRating} Heath-Carter: ${num(so.en, 1)}-${num(so.me, 1)}-${num(so.ec, 1)} (X ${num(so.x, 1)}; Y ${num(so.y, 1)}), ${SOMATO_CAT[so.cat][0]}`); src.push('Carter 2002'); }
   if (!lines.length) return null;
   const body = [...lines, t().srcLine(src.join('; '))], M = MODULES.find(m => m.id === 'm5'), bs = baseSummary();
   return { text: [t().copyHeaderMod(5, M.title[lang], todayStr()), ...(bs ? [`${t().baseLabel}: ${bs}`] : []), ...body].join('\n'), body };
@@ -875,16 +975,25 @@ function m9State() {
   return { v, err: shown, rows, hq };
 }
 function m9Fields(s) {
-  const T = T7();
-  const pair = r => { const u = typeof r.unit === 'string' ? r.unit : r.unit[lang];
-    return `<div class="lsirow"><span class="lbl">${esc(r.name[lang])}</span><div class="lsipair">
-      ${field(lsiId(r.k, 'i'), T.injured, u, S.m9.v[`x.${r.k}_i`] ?? '', { req: false, err: s.err[lsiId(r.k, 'i')], dec: true, key: `x.${r.k}_i`, mod: 'm9' })}
-      ${field(lsiId(r.k, 'u'), T.healthy, u, S.m9.v[`x.${r.k}_u`] ?? '', { req: false, err: s.err[lsiId(r.k, 'u')], dec: true, key: `x.${r.k}_u`, mod: 'm9' })}</div></div>`; };
-  const hq = HQ_FIELDS.map(f => { const id = fid('m9', 'x', f.k); return field(id, f.label[lang], f.unit, S.m9.v[`x.${f.k}`] ?? '', { req: f.req, tag: f.tag ? f.tag[lang] : '', err: s.err[id], dec: true, key: `x.${f.k}`, mod: 'm9' }); }).join('');
-  return `<h3 class="h2" style="font-size:15px">${esc(T.lsiHead)}</h3><span class="hint">${esc(T.lsiHint)}</span>
-    <div style="display:flex;flex-direction:column;gap:14px">${LSI_ROWS.map(pair).join('')}</div>
-    <h3 class="h2" style="font-size:15px;margin-top:10px">${esc(T.hqHead)}</h3><span class="hint">${esc(T.hqLimb)}</span>
-    <div style="display:flex;flex-direction:column;gap:14px">${hq}</div>`;
+  const T = T7(), cur = S.m9.test || 'single';
+  const opts = LSI_ROWS.map(r => `<option value="${r.k}" ${cur === r.k ? 'selected' : ''}>${esc(r.name[lang])}${s.rows.some(x => x.k === r.k) ? ' ✓' : ''}</option>`).join('')
+    + `<option value="hq" ${cur === 'hq' ? 'selected' : ''}>${esc(T.hqOpt)}${s.hq ? ' ✓' : ''}</option>`;
+  const sel = `<label class="field"><span class="lbl">${esc(T.testSel)}</span><select class="sel" id="m9Sel">${opts}</select></label><span class="hint">${esc(T.lsiHint)}</span>`;
+  if (cur === 'hq') {
+    const hq = HQ_FIELDS.map(f => { const id = fid('m9', 'x', f.k); return field(id, f.label[lang], f.unit, S.m9.v[`x.${f.k}`] ?? '', { req: f.req, tag: f.tag ? f.tag[lang] : '', err: s.err[id], dec: true, key: `x.${f.k}`, mod: 'm9' }); }).join('');
+    return `${sel}<span class="hint">${esc(T.hqLimb)}</span><div style="display:flex;flex-direction:column;gap:14px">${hq}</div>`;
+  }
+  const r = LSI_ROWS.find(x => x.k === cur) || LSI_ROWS[0], u = typeof r.unit === 'string' ? r.unit : r.unit[lang];
+  const res = s.rows.find(x => x.k === r.k);
+  return `${sel}<div class="fbox" style="margin:0"><span class="k">${esc(t().protocol.toUpperCase())}</span><span class="r">${esc(r.proto[lang])}</span><span class="hint">${esc(T.trialNote)}</span></div>
+    ${field(lsiId(r.k, 'u'), T.healthy, u, S.m9.v[`x.${r.k}_u`] ?? '', { req: true, err: s.err[lsiId(r.k, 'u')], dec: true, key: `x.${r.k}_u`, mod: 'm9' })}
+    ${field(lsiId(r.k, 'i'), T.injured, u, S.m9.v[`x.${r.k}_i`] ?? '', { req: true, err: s.err[lsiId(r.k, 'i')], dec: true, key: `x.${r.k}_i`, mod: 'm9' })}
+    <div id="m9live">${m9Live(s)}</div>`;
+}
+function m9Live(s) {
+  const T = T7(), r = s.rows.find(x => x.k === (S.m9.test || 'single'));
+  if (!r) return '';
+  return `${kvRow(T.thisLsi, `${num(r.lsi, 1)}%`)}<span class="hint">${r.lsi >= 90 ? esc(T.lsiOk) : `<b style="color:var(--label)">${esc(T.lsiBelow)}</b>`}</span>`;
 }
 function m9Out(s) {
   const T = T7();
@@ -916,13 +1025,15 @@ function renderM9() {
 function refreshM79(mod, keepInputs = false) {
   if (mod === 'm7') { const s = m1State(); if (keepInputs) updateFieldMsgs({ err: UI.touched.has('weight') && s.allErr.weight ? { weight: s.allErr.weight } : {} }); else return renderM7(); document.getElementById('modout').innerHTML = m7Out(); return; }
   const s = m9State();
-  if (keepInputs) updateFieldMsgs(s); else document.getElementById('fields').innerHTML = m9Fields(s);
+  if (keepInputs) { updateFieldMsgs(s); const lv = document.getElementById('m9live'); if (lv) lv.innerHTML = m9Live(s);
+    const sel = document.getElementById('m9Sel'); if (sel) [...sel.options].forEach(o => { const done = o.value === 'hq' ? !!s.hq : s.rows.some(x => x.k === o.value); o.textContent = o.textContent.replace(/ ✓$/, '') + (done ? ' ✓' : ''); }); }
+  else document.getElementById('fields').innerHTML = m9Fields(s);
   document.getElementById('modout').innerHTML = m9Out(s);
 }
 
 // ---------- Modul 2 & 3: tes berbasis data (lihat tests.js) ----------
 const MODNUM = { m2: '02', m3: '03' };
-const DEFKEY = { ymca: 'steptest', harvard: 'fi', yoyo: 'yoyo', ift: 'vift', smwt: 'smwt', grip: 'grip', sts: 'sts' };
+const DEFKEY = { queens: 'steptest', yoyo: 'yoyo', ift: 'vift', smwt: 'smwt', grip: 'grip', sts: 'sts' };
 const ctx = () => ({ L: lang, f0: x => num(x, 0), f1: x => num(x, 1), f2: x => num(x, 2), u: lang === 'id' ? 'mL/kg/mnt' : 'mL/kg/min' });
 const fid = (mod, tid, k) => `t-${mod}-${tid}-${k}`;
 const curTest = mod => TESTS[mod].find(x => x.id === S[mod].test) || TESTS[mod][0];
@@ -1253,6 +1364,10 @@ app.addEventListener('input', e => {
     query = el.value;
     renderHomeTiles(); return;
   }
+  if (el.dataset.pqtxt) {
+    S.skr.pq.txt[el.dataset.pqtxt] = el.value.slice(0, 200); save(); UI.clearArmed = false;
+    const c = skrCopy(); UI.copy = c ? c.text : null; const box = document.getElementById('copyText'); if (box && c) box.textContent = c.text; return;
+  }
   if (el.dataset.key && S[el.dataset.mod]) {
     const clean = el.value.replace(/[^\d.,]/g, '').slice(0, 6);
     if (clean !== el.value) el.value = clean;
@@ -1277,6 +1392,7 @@ app.addEventListener('change', e => {
     const mod = location.hash.match(/^#\/m\/(m2|m3)$/)?.[1]; if (!mod) return;
     S[mod].test = e.target.value; save(); renderMod(mod); document.getElementById('testSel')?.focus(); return;
   }
+  if (e.target.id === 'm9Sel') { S.m9.test = e.target.value; save(); refreshM79('m9'); document.getElementById('m9Sel')?.focus(); return; }
   if (e.target.id === 'eqSel') { S.m5.eq = e.target.value; save(); UI.ffmCopied = false; refreshM510('m5'); document.getElementById('eqSel')?.focus(); return; }
   if (e.target.id === 'rmrBasis') { S.m4.basis = e.target.value; save(); refreshCustom('m4'); document.getElementById('rmrBasis')?.focus(); return; }
   if (e.target.id === 'rmBasis') { S.m3.basis = e.target.value; save(); refreshMod('m3'); document.getElementById('rmBasis')?.focus(); return; }
@@ -1297,11 +1413,16 @@ app.addEventListener('click', async e => {
   if (b.dataset.yn) { S.skr[b.dataset.yn] = S.skr[b.dataset.yn] === b.dataset.v ? '' : b.dataset.v; if (!acsmNeedIntent()) { S.skr.intent = ''; S.skr.cleared = ''; } if (S.skr.intent !== 'vig') S.skr.cleared = ''; save(); UI.clearArmed = false; refreshSkr(`[data-yn="${b.dataset.yn}"][data-v="${b.dataset.v}"]`); return; }
   if (b.dataset.aha) { const k = b.dataset.aha; if (S.skr.aha[k] === b.dataset.v) delete S.skr.aha[k]; else S.skr.aha[k] = b.dataset.v; save(); UI.clearArmed = false; refreshSkr(`[data-aha="${k}"][data-v="${b.dataset.v}"]`); return; }
   if ('aharest' in b.dataset) { AHA14.forEach(x => { if (!S.skr.aha[x.k]) S.skr.aha[x.k] = 'n'; }); save(); refreshSkr('#h-ah'); return; }
-  if (b.dataset.parq) { S.skr.parq = S.skr.parq === b.dataset.parq ? '' : b.dataset.parq; save(); refreshSkr(`[data-parq="${b.dataset.parq}"]`); return; }
+  if (b.dataset.pq) { const k = b.dataset.pq, grp = k[0] === 'g' ? 'g' : 'f', key = k.slice(1), cur = S.skr.pq[grp][key];
+    S.skr.pq[grp][key] = cur === b.dataset.v ? '' : b.dataset.v; save(); refreshSkr(`[data-pq="${k}"][data-v="${b.dataset.v}"]`); return; }
+  if (b.dataset.pqq1 !== undefined) { const i = b.dataset.pqq1; S.skr.pq.q1[i] = !S.skr.pq.q1[i]; save(); refreshSkr(`[data-pqq1="${i}"]`); return; }
+  if (b.dataset.pqlang) { S.skr.pqLang = b.dataset.pqlang; save(); refreshSkr(`[data-pqlang="${b.dataset.pqlang}"]`); return; }
+  if (b.dataset.pqreset !== undefined) { S.skr.pq = { g: {}, q1: {}, txt: {}, f: {} }; save(); refreshSkr('#h-pq'); return; }
   if (b.dataset.ny) { const k = b.dataset.ny, v = Number(b.dataset.v); if (S.m6.s[k] === v) delete S.m6.s[k]; else S.m6.s[k] = v; save(); UI.clearArmed = false; refreshM6(); document.querySelector(`[data-ny="${k}"][data-v="${v}"]`)?.focus(); return; }
   if (b.dataset.nyview) { S.m6.view = b.dataset.nyview; save(); renderM6(); document.querySelector(`[data-nyview="${b.dataset.nyview}"]`)?.focus(); return; }
   if (b.dataset.mfx && location.hash === '#/m/m6') { const k = b.dataset.mfx; UI.mfx.has(k) ? UI.mfx.delete(k) : UI.mfx.add(k); refreshM6(false); document.querySelector(`[data-mfx="${k}"]`)?.focus(); return; }
   if (b.dataset.mfx && /^#\/m\/(m7|m9)$/.test(location.hash)) { const k = b.dataset.mfx, mod = location.hash.slice(4); UI.mfx.has(k) ? UI.mfx.delete(k) : UI.mfx.add(k); refreshM79(mod); document.querySelector(`[data-mfx="${k}"]`)?.focus(); return; }
+  if (b.dataset.guide) { const k = b.dataset.guide; UI.guide.has(k) ? UI.guide.delete(k) : UI.guide.add(k); refreshM510('m5'); document.querySelector(`[data-guide="${k}"]`)?.focus(); return; }
   if (b.dataset.m5tab) { S.m5.tab = b.dataset.m5tab; save(); renderM510('m5'); document.querySelector(`[data-m5tab="${b.dataset.m5tab}"]`)?.focus(); return; }
   if ('useffm' in b.dataset) { const r = m5FatCalc(m5State()); if (r) { S.m4.v['x.ffm'] = String(Math.round(r.ffm * 10) / 10).replace('.', lang === 'id' ? ',' : '.'); save(); UI.ffmCopied = true; refreshM510('m5'); document.querySelector('[data-useffm]')?.focus(); } return; }
   if (b.dataset.mfx && /^#\/m\/(m5|m10)$/.test(location.hash)) { const k = b.dataset.mfx, mod = location.hash.slice(4); UI.mfx.has(k) ? UI.mfx.delete(k) : UI.mfx.add(k); refreshM510(mod); document.querySelector(`[data-mfx="${k}"]`)?.focus(); return; }

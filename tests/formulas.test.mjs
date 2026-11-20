@@ -2,8 +2,8 @@
 // Membandingkan hasil rumus aplikasi dengan contoh hitung (Kartu Spesifikasi v0.1.1 dan hitung tangan gelombang B).
 import assert from 'node:assert/strict';
 import {
-  hrmax, hrmaxApplies, acsmZones, vo2Cooper, vo2Rockport, vo2Leger, legerSpeed, vo2Run24, vo2Queens, harvardLong, harvardShort,
-  vo2YoYo1, vo2Ift, sixMwtPred, lsiDist, lsiTime, hqRatio, siri, jp3Men, jpw3Women, dwDensity, dwRow, hastutiS4, hastutiAbd, ffmFrom, targetWeight, endomorphy, mesomorphy, hwr, ectomorphy, somatoXY, sweatLoss, sweatRate, bmChangePct, rmrTenHaaf, rmrTenHaafFfm, rmrMifflin, rmrHarrisRev, rmrCunningham, energyAvail, bmi, bmiCat, centralObese, whtr, whr, whrHigh, rmEpley, rmBrzycki, NUZZO, round05, gripCut, stsCut,
+  hrmax, hrmaxApplies, acsmZones, vo2Cooper, vo2Rockport, vo2Leger, legerSpeed, vo2Queens,
+  vo2YoYo1, sixMwtPred, lsiDist, lsiTime, hqRatio, siri, jp3Men, jpw3Women, dwDensity, dwRow, hastutiAbd, ffmFrom, targetWeight, endomorphy, mesomorphy, hwr, ectomorphy, somatoXY, somatoCategory, sweatLoss, sweatRate, bmChangePct, rmrTenHaaf, rmrMifflin, rmrCunningham, energyAvail, bmi, bmiCat, centralObese, whtr, whr, whrHigh, rmEpley, rmBrzycki, NUZZO, round05, gripCut, stsCut,
 } from '../js/formulas.js';
 import { acsmResult } from '../js/screening.js';
 import { NYPR } from '../js/nypr.js';
@@ -16,11 +16,7 @@ const check = (label, cond) => { assert.ok(cond, label); n++; console.log('ok -'
 // Modul 1 — pria 30 th, HR istirahat 60 (Kartu Spesifikasi, Modul 1)
 check('Fox 30 th = 190', near(hrmax('fox', 30), 190));
 check('Tanaka 30 th = 187', near(hrmax('tanaka', 30), 187));
-check('Gellish 30 th = 186', near(hrmax('gellish', 30), 186));
 check('Nes 30 th = 191,8', near(hrmax('nes', 30), 191.8));
-check('Gulati 30 th = 179,6', near(hrmax('gulati', 30), 179.6));
-check('Gulati tidak berlaku untuk pria', !hrmaxApplies('gulati', 'M'));
-check('Gulati berlaku untuk wanita', hrmaxApplies('gulati', 'F'));
 const z = acsmZones(187, 60);
 check('Zona ringan 98–110', z[0].bpmLo === 98 && z[0].bpmHi === 110);
 check('Zona sedang 111–135', z[1].bpmLo === 111 && z[1].bpmHi === 135);
@@ -33,13 +29,9 @@ check('Léger tahap 10: kecepatan 13,0', legerSpeed(10) === 13);
 check('Léger tahap 10 dewasa = 50,6', near(vo2Leger(10, 30), 50.6));
 check('Léger dewasa tidak bergantung usia (≥18)', vo2Leger(10, 25) === vo2Leger(10, 60));
 // Modul 2 — hitung tangan gelombang B
-check('Lari 2,4 km 12 mnt = 43,75', near(vo2Run24(12), 43.75, 0.001));
 check('Queens pria HR 152 = 47,49', near(vo2Queens(true, 152), 47.49, 0.005));
 check('Queens wanita HR 160 = 36,26', near(vo2Queens(false, 160), 36.258, 0.005));
-check('Harvard panjang 300 dtk, 80/70/60 = 71,4', near(harvardLong(300, 80, 70, 60), 71.43, 0.01));
-check('Harvard pendek 300 dtk, 80 = 68,2', near(harvardShort(300, 80), 68.18, 0.01));
 check('Yo-Yo IR1 1.200 m = 46,48', near(vo2YoYo1(1200), 46.48, 0.001));
-check('30-15 IFT pria 20 th 70 kg VIFT 19 = 50,67', near(vo2Ift(true, 20, 70, 19), 50.669, 0.005));
 check('6MWT prediksi pria 60 th 170 cm 70 kg = 553,5', near(sixMwtPred(true, 60, 170, 70), 553.5, 0.01));
 check('6MWT prediksi wanita 60 th 160 cm 60 kg = 520,4', near(sixMwtPred(false, 60, 160, 60), 520.4, 0.01));
 
@@ -60,10 +52,8 @@ check('5×STS: ambang 12 dtk hanya ≥65 th', stsCut(65) === 12 && stsCut(64) ==
 // Modul 4 — contoh Kartu Spesifikasi v0.1.1 (pria 30 th, 75 kg, 172 cm, FFM 62,5 kg)
 check('Ten Haaf (BB) = 1.883', Math.round(rmrTenHaaf(75, 1.72, 30, true)) === 1883);
 check('Ten Haaf versi kJ ÷ 4,184 = versi kkal (uji silang)', near((49.940 * 75 + 2459.053 * 1.72 - 34.014 * 30 + 799.257 * 1 + 122.502) / 4.184, rmrTenHaaf(75, 1.72, 30, true), 1));
-check('Ten Haaf (FFM 62,5) = 1.907', Math.round(rmrTenHaafFfm(62.5)) === 1907);
 check('Mifflin-St Jeor pria = 1.680', rmrMifflin(75, 172, 30, true) === 1680);
 check('Mifflin-St Jeor wanita = pria − 166', rmrMifflin(75, 172, 30, false) === 1514);
-check('Harris-Benedict revisi pria = 1.748', Math.round(rmrHarrisRev(75, 172, 30, true)) === 1748);
 check('Cunningham (FFM 62,5) = 1.875', rmrCunningham(62.5) === 1875);
 check('TDEE Ten Haaf × PAL 1,75 = 3.294', Math.round(rmrTenHaaf(75, 1.72, 30, true) * 1.75) === 3294);
 check('EA (2.400 − 600) / 62,5 = 28,8', near(energyAvail(2400, 600, 62.5), 28.8, 0.001));
@@ -79,7 +69,6 @@ check('Jackson-Pollock pria 30 th, S 47 → D 1,06634 → 14,2%', near(jp3Men(47
 check('FFM 75 kg pada 14,2% = 64,3; BB target 12% = 73,1', near(ffmFrom(75, siri(jp3Men(47, 30))), 64.3, 0.05) && near(targetWeight(ffmFrom(75, siri(jp3Men(47, 30))), 12), 73.1, 0.05));
 check('Durnin-Womersley pria 30 th Σ4 46 → D 1,05175 → 20,6%', near(dwDensity(46, 30, 'M'), 1.05175, 0.00001) && near(siri(dwDensity(46, 30, 'M')), 20.6, 0.05));
 check('Durnin-Womersley: baris usia 20–29 pria C 1,1631 M 0,0632; >72 th memakai baris 50–72', dwRow(25, 'M')[2] === 1.1631 && dwRow(80, 'M')[0] === 50);
-check('Hastuti Σ4 46 mm, 30 th = 20,7%', near(hastutiS4(46, 30), 20.67, 0.01));
 check('Hastuti abdomen 20 + triseps 10, 30 th = 22,5%', near(hastutiAbd(20, 10, 30), 8 + 8.04 + 4.86 + 1.77, 0.001));
 check('Jackson-Pollock-Ward wanita 28 th S 63 = 25,0%', near(siri(jpw3Women(63, 28)), 25.0, 0.05));
 // Heath-Carter — subjek 573 manual Carter 2002 (1,6-5,4-3,2)
@@ -91,6 +80,15 @@ check('Komponen ≤0 diberi 0,1', endomorphy(0, 0, 0, 178) === 0.1);
 check('Lingkar terkoreksi: lingkar lengan − triseps/10', near(mesomorphy(7.2, 9.75, 34.3, 10, 38.1, 10, 178), mesomorphy(7.2, 9.75, 33.3, 0, 37.1, 0, 178), 1e-9));
 check('HWR 178 cm / ∛70 kg = 43,2', near(hwr(178, 70), 43.19, 0.01));
 check('Koordinat somatochart 1,6-5,4-3,2 → X 1,6; Y 6,0', near(somatoXY(1.6, 5.4, 3.2).x, 1.6, 1e-9) && near(somatoXY(1.6, 5.4, 3.2).y, 6.0, 1e-9));
+// Kategori somatotipe Carter 2002
+check('Subjek 573 (1,6-5,4-3,2) = ectomorphic mesomorph', somatoCategory(1.6, 5.4, 3.2) === 'ectoic-meso');
+check('5-4-1,5 = mesomorphic endomorph', somatoCategory(5, 4, 1.5) === 'mesoic-endo');
+check('3-3,5-3 = central', somatoCategory(3, 3.5, 3) === 'central');
+check('2-5-2,5 = balanced mesomorph', somatoCategory(2, 5, 2.5) === 'balanced-meso');
+check('4-4,5-1 = mesomorph-endomorph', somatoCategory(4, 4.5, 1) === 'endo-meso');
+check('1-2-5 = mesomorphic ectomorph', somatoCategory(1, 2, 5) === 'mesoic-ecto');
+check('1,5-2-5 = balanced ectomorph (selisih 0,5 = setara)', somatoCategory(1.5, 2, 5) === 'balanced-ecto');
+check('4-1,5-4 = endomorph-ectomorph', somatoCategory(4, 1.5, 4) === 'ecto-endo');
 // Modul 10 — contoh Kartu Spesifikasi v0.1.1
 check('Sweat: 70,0 → 68,9 kg, minum 0,8 L, urine 0,2 L → 1,70 L', near(sweatLoss(70, 68.9, 0.8, 0.2), 1.70, 0.001));
 check('Sweat rate 1,70 L / 1,5 jam = 1,13 L/jam', near(sweatRate(1.7, 1.5), 1.133, 0.001));

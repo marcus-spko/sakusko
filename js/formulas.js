@@ -5,11 +5,10 @@
 export const HRMAX = {
   fox:     { name: 'Fox',     a: 220, b: 1.00, sex: 'all' },  // 220 − usia (tradisional)
   tanaka:  { name: 'Tanaka',  a: 208, b: 0.70, sex: 'all' },  // Tanaka 2001
-  gellish: { name: 'Gellish', a: 207, b: 0.70, sex: 'all' },  // Gellish 2007
   nes:     { name: 'Nes',     a: 211, b: 0.64, sex: 'all' },  // Nes 2013
-  gulati:  { name: 'Gulati',  a: 206, b: 0.88, sex: 'F' },    // Gulati 2010 (wanita)
 };
-export const HRMAX_ORDER = ['tanaka', 'gellish', 'fox', 'nes', 'gulati'];
+// Dirampingkan 20 Nov 2026: Gellish (selalu 1 kali/mnt di bawah Tanaka) dan Gulati dihapus.
+export const HRMAX_ORDER = ['tanaka', 'nes', 'fox'];
 
 export function hrmax(key, age) {
   const f = HRMAX[key];
@@ -59,15 +58,8 @@ export function vo2Leger(stage, age) {                                          
   const s = legerSpeed(stage), a = age >= 18 ? 18 : age;
   return 31.025 + 3.238 * s - 3.248 * a + 0.1536 * a * s;
 }
-export const vo2Run24 = tMin => 483 / tMin + 3.5;                                    // lari 2,4 km / 1,5 mil
 export const vo2Queens = (male, hr) => male ? 111.33 - 0.42 * hr : 65.81 - 0.1847 * hr; // McArdle 1972
-export const harvardLong = (durS, c1, c2, c3) => (100 * durS) / (2 * (c1 + c2 + c3)); // Brouha 1943
-export const harvardShort = (durS, c1) => (100 * durS) / (5.5 * c1);
 export const vo2YoYo1 = d => d * 0.0084 + 36.4;                                      // Bangsbo 2008
-export function vo2Ift(male, age, wKg, vift) {                                        // Buchheit 2008; G pria 1, wanita 2
-  const G = male ? 1 : 2;
-  return 28.3 - 2.15 * G - 0.741 * age - 0.0357 * wKg + 0.0586 * age * vift + 1.03 * vift;
-}
 export function sixMwtPred(male, age, hCm, wKg) {                                     // Enright & Sherrill 1998, 40–80 th
   return male ? 7.57 * hCm - 5.02 * age - 1.76 * wKg - 309 : 2.11 * hCm - 2.29 * wKg - 5.78 * age + 667;
 }
@@ -96,9 +88,7 @@ export const stsCut = age => (age >= 65 ? 12 : null);
 
 // ================= Modul 4 — energi (kkal/hari) =================
 export const rmrTenHaaf = (w, hM, age, male) => 11.936 * w + 587.728 * hM - 8.129 * age + 191.027 * (male ? 1 : 0) + 29.279; // ten Haaf & Weijs 2014
-export const rmrTenHaafFfm = ffm => 22.771 * ffm + 484.264;
 export const rmrMifflin = (w, hCm, age, male) => 10 * w + 6.25 * hCm - 5 * age + (male ? 5 : -161);                  // Mifflin 1990
-export const rmrHarrisRev = (w, hCm, age, male) => (male ? 88.362 + 13.397 * w + 4.799 * hCm - 5.677 * age : 447.593 + 9.247 * w + 3.098 * hCm - 4.330 * age); // Roza & Shizgal 1984
 export const rmrCunningham = ffm => 500 + 22 * ffm;                                                                       // Cunningham 1980
 export const energyAvail = (ei, eee, ffm) => (ei - eee) / ffm;                                                           // IOC 2023
 // Karbohidrat (g/kg/hari) menurut beban latihan — ACSM/AND/DC 2016
@@ -132,7 +122,6 @@ export const DW = {
 };
 export function dwRow(age, sex) { const t = DW[sex]; return t.find(r => age >= r[0] && age <= r[1]) || (age > t[t.length - 1][1] ? t[t.length - 1] : t[0]); }
 export const dwDensity = (S4, age, sex) => { const r = dwRow(age, sex); return r[2] - r[3] * Math.log10(S4); };
-export const hastutiS4 = (S4, age) => 7.579 + 0.237 * S4 + 0.073 * age;                           // Hastuti 2013, pria
 export const hastutiAbd = (abd, tri, age) => 8.000 + 0.402 * abd + 0.486 * tri + 0.059 * age;     // Hastuti 2013, pria
 export const ffmFrom = (w, pct) => w * (1 - pct / 100);
 export const targetWeight = (ffm, pct) => ffm / (1 - pct / 100);
@@ -146,6 +135,16 @@ export function mesomorphy(hum, fem, armG, triMm, calfG, calfMm, hCm) {
 export const hwr = (hCm, w) => hCm / Math.cbrt(w);
 export function ectomorphy(h) { if (h >= 40.75) return floor01(0.732 * h - 28.58); if (h > 38.25) return floor01(0.463 * h - 17.63); return 0.1; }
 export const somatoXY = (en, me, ec) => ({ x: ec - en, y: 2 * me - (en + ec) });
+// 13 kategori somatotipe (Carter 2002). "Sama" = selisih ≤0,5; sentral = tidak ada komponen yang berbeda >1 dari dua lainnya.
+export function somatoCategory(en, me, ec) {
+  const c = { endo: en, meso: me, ecto: ec };
+  if (Math.max(en, me, ec) - Math.min(en, me, ec) <= 1) return 'central';
+  const [a, b, d] = Object.keys(c).sort((x, y) => c[y] - c[x]);
+  const eps = 1e-9;
+  if (c[a] - c[b] <= 0.5 + eps) return [a, b].sort().join('-');          // dua komponen setara, ketiga lebih kecil
+  if (c[b] - c[d] <= 0.5 + eps) return `balanced-${a}`;                   // satu dominan, dua lainnya setara
+  return `${b}ic-${a}`;                                                   // dominan a, kedua b
+}
 
 // ================= Modul 10 — sweat rate =================
 export const sweatLoss = (pre, post, fluidL, urineL) => pre - post + fluidL - urineL;  // L (1 kg ≈ 1 L)

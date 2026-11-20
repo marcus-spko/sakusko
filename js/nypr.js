@@ -46,20 +46,23 @@ function feetDir(a, sag) {
 const arches = depth => PLUMB(50) + footprint(30, true, 0, depth) + footprint(70, false, 0, depth);
 
 // ---------- tampak samping kiri (menghadap kiri), unting-unting x=55 ----------
-const sideHead = () => `<circle cx="53" cy="13" r="9.5" ${st()} fill="#FFFFFF"/><path d="M43.5 11 l-3 3 l3 2" ${st()}/><circle cx="55" cy="14" r="1.8" fill="${INK}"/>`;
-function sideBody({ chest = 32, sh = 55, ub = 70, abd = 38, abdY = 66, lb = 62, lean = 0, blade = false } = {}) {
+// kepala profil sederhana: oval, hidung kecil, telinga (tanpa "paruh")
+const sideHead = () => `<ellipse cx="53" cy="12.5" rx="8.6" ry="10" ${st()} fill="#FFFFFF"/><path d="M44.6 11.5 q-1.8 1.5 0.1 2.9" ${st(INK, 1.5)}/><path d="M54.5 10 q2.6 0 2.6 2.8 q0 2.6 -2.2 3.2" ${st(INK, 1.4)}/>`;
+function sideBody({ chest = 36, sh = 55, ub = 67, abd = 40, abdY = 66, lb = 63, lean = 0, blade = false } = {}) {
   const front = `<path d="M48 23 C44 27 ${chest} 33 ${chest} 44 C${chest} 54 ${abd + 3} 58 ${abd} ${abdY} C${abd - 2} ${abdY + 8} 38 80 40 86" ${st()}/>`;
   const back = `<path d="M60 22 C64 26 ${ub} 32 ${ub} 42 C${ub} 52 ${lb + 3} 58 ${lb} 66 C${lb + 1} 74 72 78 70 86" ${st()}/>`;
-  const arm = `<path d="M${sh} 30 C${sh - 1} 44 ${sh} 56 ${sh + 2} 70" ${st(INK, 1.6)}/>`;
+  const arm = `<path d="M${sh} 30 C${sh - 1} 42 ${sh - 1} 52 ${sh} 62" ${st(INK, 1.6)}/>`;
   const upper = `<g transform="rotate(${lean} 55 86)">${sideHead()}<path d="M49 22 L48 24 M58 22 L60 23" ${st()}/>${front}${back}${arm}<circle cx="${sh}" cy="30" r="2.6" fill="${INK}"/>${blade ? `<path d="M${ub - 3} 32 q10 5 3 14" ${st(DEV, 2)}/>` : ''}</g>`;
-  const legs = `<path d="M40 86 C41 96 42 102 42 108 M70 86 C68 96 66 102 66 108" ${st()}/>`;
+  const r = lean * Math.PI / 180, c = Math.cos(r), sn = Math.sin(r);       // pinggul ikut berputar agar tungkai tetap menyambung
+  const L = [55 - 15 * c, 86 - 15 * sn].map(v => v.toFixed(1)), R = [55 + 15 * c, 86 + 15 * sn].map(v => v.toFixed(1));
+  const legs = `<path d="M${L[0]} ${L[1]} C41 96 42 102 42 108 M${R[0]} ${R[1]} C68 96 66 102 66 108" ${st()}/>`;
   return PLUMB(55) + upper + legs;
 }
 function sideNeck(dx) {
   const torso = `<path d="M70 108 C72 94 68 82 62 73" ${st()}/><path d="M34 108 C32 94 36 82 46 75" ${st()}/>`;
   const neck = `<path d="M46 75 L${47 + dx} 60" ${st()}/><path d="M62 73 L${60 + dx} 59" ${st()}/>`;
   const hx = 54 + dx;
-  const head = `<circle cx="${hx}" cy="44" r="15" ${st()} fill="#FFFFFF"/><path d="M${hx - 15} 41 l-4 4 l4 2" ${st()}/><circle cx="${hx + 1}" cy="45" r="2.2" fill="${INK}"/>`;
+  const head = `<ellipse cx="${hx}" cy="43" rx="13.5" ry="16" ${st()} fill="#FFFFFF"/><path d="M${hx - 13.4} 41 q-2.6 2.2 0.1 4.4" ${st(INK, 1.6)}/><path d="M${hx + 1} 40 q4 0 4 4.5 q0 4 -3.2 5" ${st(INK, 1.6)}/><circle cx="${hx + 1}" cy="45" r="1.6" fill="${INK}"/>`;
   return PLUMB(55) + torso + neck + head + `<circle cx="55" cy="84" r="2.2" fill="${INK}"/>` + (dx ? `<line x1="${hx + 1}" y1="45" x2="55" y2="45" ${st(DEV, 1.8)}/>` : '');
 }
 
@@ -94,29 +97,29 @@ export const NYPR = [
     [3, S('Leher sedikit maju, dagu sedikit menonjol', 'Neck slightly forward, chin slightly out'), () => sideNeck(-6)],
     [1, S('Leher jelas maju, dagu jelas menonjol', 'Neck markedly forward, chin markedly out'), () => sideNeck(-12)]] },
   { k: 'chest', view: 'side', name: S('Dada', 'Chest'), opts: [
-    [5, S('Dada terangkat; tulang dada bagian tubuh paling depan', 'Chest elevated; breastbone the furthest forward part of the body'), () => sideBody({ chest: 30 }) + arrow(12, 44, 26, 44)],
-    [3, S('Dada sedikit tertekan', 'Chest slightly depressed'), () => sideBody({ chest: 37 }) + arrow(18, 44, 32, 44)],
-    [1, S('Dada jelas tertekan (datar)', 'Chest markedly depressed (flat)'), () => sideBody({ chest: 43 }) + arrow(24, 44, 38, 44)]] },
+    [5, S('Dada terangkat; tulang dada bagian tubuh paling depan', 'Chest elevated; breastbone the furthest forward part of the body'), () => sideBody({ chest: 36 }) + arrow(20, 44, 33, 44)],
+    [3, S('Dada sedikit tertekan', 'Chest slightly depressed'), () => sideBody({ chest: 41 }) + arrow(25, 44, 38, 44)],
+    [1, S('Dada jelas tertekan (datar)', 'Chest markedly depressed (flat)'), () => sideBody({ chest: 46 }) + arrow(30, 44, 43, 44)]] },
   { k: 'shoulderSide', view: 'side', name: S('Bahu (samping)', 'Shoulders (side)'), opts: [
     [5, S('Bahu di tengah, segaris unting-unting', 'Shoulders centred on the plumb line'), () => sideBody({ sh: 55 })],
     [3, S('Bahu sedikit maju', 'Shoulders slightly forward'), () => sideBody({ sh: 49 }) + `<line x1="49" y1="30" x2="55" y2="30" ${st(DEV, 1.8)}/>`],
     [1, S('Bahu jelas maju; tulang belikat menonjol ke belakang', 'Shoulders markedly forward; shoulder blades protruding at the back'), () => sideBody({ sh: 43, blade: true }) + `<line x1="43" y1="30" x2="55" y2="30" ${st(DEV, 1.8)}/>`]] },
   { k: 'upperBack', view: 'side', name: S('Punggung atas', 'Upper back'), opts: [
-    [5, S('Punggung atas melengkung normal', 'Upper back normally rounded'), () => sideBody({ ub: 70 }) + arrow(92, 42, 78, 42)],
-    [3, S('Punggung atas sedikit lebih membulat', 'Upper back slightly more rounded'), () => sideBody({ ub: 76 }) + arrow(96, 42, 82, 42)],
-    [1, S('Punggung atas jelas membulat', 'Upper back markedly rounded'), () => sideBody({ ub: 82, sh: 51 }) + arrow(99, 42, 88, 42)]] },
+    [5, S('Punggung atas melengkung normal', 'Upper back normally rounded'), () => sideBody({ ub: 67 }) + arrow(84, 42, 71, 42)],
+    [3, S('Punggung atas sedikit lebih membulat', 'Upper back slightly more rounded'), () => sideBody({ ub: 72 }) + arrow(89, 42, 76, 42)],
+    [1, S('Punggung atas jelas membulat', 'Upper back markedly rounded'), () => sideBody({ ub: 77, sh: 51 }) + arrow(94, 42, 81, 42)]] },
   { k: 'trunk', view: 'side', name: S('Batang tubuh', 'Trunk'), opts: [
     [5, S('Batang tubuh tegak', 'Trunk erect'), () => sideBody({ lean: 0 })],
     [3, S('Batang tubuh sedikit condong ke belakang', 'Trunk inclined slightly to the rear'), () => sideBody({ lean: 8 }) + arrow(76, 66, 82, 52)],
     [1, S('Batang tubuh jelas condong ke belakang', 'Trunk inclined markedly to the rear'), () => sideBody({ lean: 16 }) + arrow(80, 68, 90, 52)]] },
   { k: 'abdomen', view: 'side', name: S('Perut', 'Abdomen'), opts: [
-    [5, S('Perut datar', 'Abdomen flat'), () => sideBody({ abd: 38 }) + arrow(14, 66, 30, 66)],
-    [3, S('Perut menonjol', 'Abdomen protruding'), () => sideBody({ abd: 31 }) + arrow(8, 66, 24, 66)],
-    [1, S('Perut menonjol dan menggantung', 'Abdomen protruding and sagging'), () => sideBody({ abd: 27, abdY: 73 }) + arrow(4, 74, 20, 74)]] },
+    [5, S('Perut datar', 'Abdomen flat'), () => sideBody({ abd: 40 }) + arrow(24, 66, 37, 66)],
+    [3, S('Perut menonjol', 'Abdomen protruding'), () => sideBody({ abd: 34 }) + arrow(18, 66, 31, 66)],
+    [1, S('Perut menonjol dan menggantung', 'Abdomen protruding and sagging'), () => sideBody({ abd: 30, abdY: 73 }) + arrow(14, 74, 27, 74)]] },
   { k: 'lowerBack', view: 'side', name: S('Punggung bawah', 'Lower back'), opts: [
-    [5, S('Punggung bawah melengkung normal', 'Lower back normally curved'), () => sideBody({ lb: 63 }) + arrow(90, 66, 70, 66)],
-    [3, S('Punggung bawah sedikit cekung', 'Lower back slightly hollow'), () => sideBody({ lb: 58 }) + arrow(86, 66, 65, 66)],
-    [1, S('Punggung bawah jelas cekung', 'Lower back markedly hollow'), () => sideBody({ lb: 52 }) + arrow(82, 66, 59, 66)]] },
+    [5, S('Punggung bawah melengkung normal', 'Lower back normally curved'), () => sideBody({ lb: 63 }) + arrow(83, 66, 67, 66)],
+    [3, S('Punggung bawah sedikit cekung', 'Lower back slightly hollow'), () => sideBody({ lb: 60 }) + arrow(80, 66, 64, 66)],
+    [1, S('Punggung bawah jelas cekung', 'Lower back markedly hollow'), () => sideBody({ lb: 57 }) + arrow(77, 66, 61, 66)]] },
 ];
 export const nyprSvg = (seg, i, L) => wrap(seg.opts[i][2](), `${seg.name[L]} ${seg.opts[i][0]}: ${seg.opts[i][1][L]}`);
 export const NYPR_REF = {

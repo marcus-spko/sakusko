@@ -72,13 +72,6 @@ export const ACSM_ALWAYS = {
   en: 'This algorithm is for aerobic exercise. If signs or symptoms appear at any time, stop exercising and seek medical evaluation. Risk-factor counts no longer decide referral, but remain important for disease prevention.',
 };
 
-// ---------- B. PAR-Q+: catatan hasil (bukan formulir) ----------
-export const PARQ_OUT = [
-  ['allno', { id: 'Semua jawaban halaman 1 "Tidak"', en: 'All page-1 answers "No"' }],
-  ['fu', { id: 'Ada "Ya"; semua pertanyaan lanjutan "Tidak"', en: 'Some "Yes"; all follow-up questions "No"' }],
-  ['fuyes', { id: 'Ada "Ya" pada pertanyaan lanjutan', en: '"Yes" to a follow-up question' }],
-];
-
 // ---------- C. Daftar 14 elemen AHA/ACC ----------
 export const AHA14 = [
   { g: 'p', k: 'p1', id: 'Nyeri, rasa tidak nyaman, sesak, atau tertekan di dada terkait aktivitas fisik', en: 'Chest pain, discomfort, tightness or pressure related to exertion' },

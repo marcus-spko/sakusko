@@ -49,12 +49,12 @@ export const SUPPS = [
 
 // Modul 9 — baterai LSI
 export const LSI_ROWS = [
-  { k: 'single', type: 'dist', name: { id: 'Single hop', en: 'Single hop' }, unit: 'cm', lim: [10, 400] },
-  { k: 'triple', type: 'dist', name: { id: 'Triple hop', en: 'Triple hop' }, unit: 'cm', lim: [30, 1200] },
-  { k: 'cross', type: 'dist', name: { id: 'Crossover hop', en: 'Crossover hop' }, unit: 'cm', lim: [30, 1200] },
-  { k: 'timed', type: 'time', name: { id: '6-m timed hop', en: '6-m timed hop' }, unit: { id: 'dtk', en: 's' }, lim: [0.5, 20] },
-  { k: 'quad', type: 'dist', name: { id: 'Torsi kuadriseps', en: 'Quadriceps torque' }, unit: 'N·m', lim: [5, 600] },
-  { k: 'ham', type: 'dist', name: { id: 'Torsi hamstring', en: 'Hamstring torque' }, unit: 'N·m', lim: [5, 600] },
+  { k: 'single', type: 'dist', name: { id: 'Single hop', en: 'Single hop' }, unit: 'cm', lim: [10, 400], proto: { id: 'Berdiri satu kaki, lompat sejauh mungkin ke depan, dan mendarat dengan kaki yang sama; ukur jarak dari garis start ke tumit.', en: 'Stand on one leg, hop as far forward as possible and land on the same leg; measure from the start line to the heel.' } },
+  { k: 'triple', type: 'dist', name: { id: 'Triple hop', en: 'Triple hop' }, unit: 'cm', lim: [30, 1200], proto: { id: 'Tiga lompatan berturut-turut sejauh mungkin dengan kaki yang sama; ukur jarak total.', en: 'Three consecutive maximal hops on the same leg; measure the total distance.' } },
+  { k: 'cross', type: 'dist', name: { id: 'Crossover hop', en: 'Crossover hop' }, unit: 'cm', lim: [30, 1200], proto: { id: 'Tiga lompatan berturut-turut dengan kaki yang sama sambil menyilang bolak-balik pita selebar 15 cm; ukur jarak total.', en: 'Three consecutive hops on the same leg, crossing back and forth over a 15 cm strip; measure the total distance.' } },
+  { k: 'timed', type: 'time', name: { id: '6-m timed hop', en: '6-m timed hop' }, unit: { id: 'dtk', en: 's' }, lim: [0.5, 20], proto: { id: 'Lompat satu kaki secepat mungkin menempuh 6 m; catat waktunya.', en: 'Hop on one leg as fast as possible over 6 m; record the time.' } },
+  { k: 'quad', type: 'dist', name: { id: 'Torsi kuadriseps', en: 'Quadriceps torque' }, unit: 'N·m', lim: [5, 600], proto: { id: 'Torsi puncak dari dinamometer dengan kecepatan dan posisi yang sama pada kedua sisi.', en: 'Peak torque from a dynamometer with the same velocity and position on both sides.' } },
+  { k: 'ham', type: 'dist', name: { id: 'Torsi hamstring', en: 'Hamstring torque' }, unit: 'N·m', lim: [5, 600], proto: { id: 'Torsi puncak dari dinamometer dengan kecepatan dan posisi yang sama pada kedua sisi.', en: 'Peak torque from a dynamometer with the same velocity and position on both sides.' } },
 ];
 export const HQ_FIELDS = [
   { k: 'hcon', label: { id: 'Hamstring konsentrik', en: 'Hamstring concentric' }, unit: 'N·m', lim: [5, 600], req: true },
@@ -80,7 +80,7 @@ export const M79_T = {
     m7Sources: 'Sumber: IOC (Maughan dkk.) 2018; ISSN kafein (Guest dkk.) 2021; ISSN kreatin (Kreider dkk.) 2017; ISSN natrium bikarbonat (Grgic dkk.) 2021.',
     m9Sub: 'Limb symmetry index (LSI) untuk baterai tes lompat dan torsi, serta rasio hamstring:kuadriseps',
     lsiHead: 'Limb symmetry index (LSI)', injured: 'Cedera/operasi', healthy: 'Sehat',
-    lsiHint: 'Isi pasangan nilai pada tes yang dilakukan saja.', lsiNone: 'Isi minimal satu pasangan nilai.',
+    lsiHint: 'Pilih tes, isi nilai sisi sehat lalu sisi cedera. Ulangi untuk tes lain; semua tes yang lengkap masuk ke hasil dan Ringkasan.', testSel: 'Pilih tes', hqOpt: 'Rasio H:Q (isokinetik)', thisLsi: 'LSI tes ini', done: 'Lengkap', trialNote: 'Lazimnya dipakai rerata dua percobaan sah pada tiap sisi.', lsiNone: 'Isi minimal satu pasangan nilai.',
     lsiBelow: 'di bawah 90%', lsiOk: '≥90%', lsiCount: (a, n) => `${a} dari ${n} tes mencapai LSI ≥90%`,
     lsiNote: 'LSI ≥90% adalah kriteria yang paling sering dipakai. Keputusan return to sport harus berbasis kriteria dan dibuat tim multidisiplin, bukan berbasis waktu (konsensus Panther).',
     lsiCaveat: 'LSI dapat melebih-lebihkan fungsi karena tungkai sehat juga melemah setelah cedera; bandingkan juga dengan kapasitas sebelum cedera bila tersedia.',
@@ -107,7 +107,7 @@ export const M79_T = {
     m7Sources: 'Sources: IOC (Maughan et al.) 2018; ISSN caffeine (Guest et al.) 2021; ISSN creatine (Kreider et al.) 2017; ISSN sodium bicarbonate (Grgic et al.) 2021.',
     m9Sub: 'Limb symmetry index (LSI) for hop and torque test batteries, and the hamstring:quadriceps ratio',
     lsiHead: 'Limb symmetry index (LSI)', injured: 'Injured/operated', healthy: 'Uninjured',
-    lsiHint: 'Enter value pairs only for the tests performed.', lsiNone: 'Enter at least one value pair.',
+    lsiHint: 'Pick a test, enter the uninjured side, then the injured side. Repeat for other tests; all completed tests appear in the results and Summary.', testSel: 'Choose test', hqOpt: 'H:Q ratio (isokinetic)', thisLsi: 'LSI for this test', done: 'Complete', trialNote: 'Usually the mean of two valid trials per side is used.', lsiNone: 'Enter at least one value pair.',
     lsiBelow: 'below 90%', lsiOk: '≥90%', lsiCount: (a, n) => `${a} of ${n} tests reach LSI ≥90%`,
     lsiNote: 'LSI ≥90% is the most commonly used criterion. Return-to-sport decisions should be criteria-based and made by a multidisciplinary team, not time-based (Panther consensus).',
     lsiCaveat: 'LSI can overestimate function because the uninjured limb also weakens after injury; compare with pre-injury capacity when available.',

@@ -19,7 +19,7 @@ export const SITES = {
   tri: { label: { id: 'Triseps', en: 'Triceps' }, unit: mm, lim: [2, 60] },
   bic: { label: { id: 'Biseps', en: 'Biceps' }, unit: mm, lim: [2, 60] },
   sub: { label: { id: 'Subskapula', en: 'Subscapular' }, unit: mm, lim: [2, 70] },
-  ic: { label: { id: 'Krista iliaka (ISAK)', en: 'Iliac crest (ISAK)' }, unit: mm, lim: [2, 70], hint: { id: 'Persamaan Hastuti dan Durnin-Womersley untuk pengguna Indonesia memakai titik krista iliaka ISAK.', en: 'Hastuti and Durnin-Womersley for Indonesian users use the ISAK iliac crest site.' } },
+  ic: { label: { id: 'Krista iliaka (ISAK)', en: 'Iliac crest (ISAK)' }, unit: mm, lim: [2, 70], hint: { id: 'Durnin-Womersley untuk pengguna Indonesia memakai titik krista iliaka ISAK (Hastuti 2018).', en: 'Durnin-Womersley for Indonesian users uses the ISAK iliac crest site (Hastuti 2018).' } },
   ss: { label: { id: 'Supraspinale (ISAK)', en: 'Supraspinale (ISAK)' }, unit: mm, lim: [2, 70], hint: { id: 'Dahulu disebut suprailiaka; berbeda dari titik krista iliaka.', en: 'Formerly called suprailiac; differs from the iliac crest site.' } },
   abd: { label: { id: 'Abdomen', en: 'Abdominal' }, unit: mm, lim: [2, 80] },
   chest: { label: { id: 'Dada', en: 'Chest' }, unit: mm, lim: [2, 60] },
@@ -34,18 +34,58 @@ export const SITES = {
 };
 // Persamaan %lemak
 export const EQS = {
-  hastuti: { sex: 'M', sites: ['tri', 'bic', 'sub', 'ic'], name: { id: 'Hastuti Σ4 (pria Indonesia)', en: 'Hastuti Σ4 (Indonesian men)' }, age: [18, 65], refs: ['h13'],
-    pop: { id: '292 pria Jawa 18–65 th, rujukan deuterium, protokol ISAK; bukan atlet (IMT ±21,5)', en: '292 Javanese men 18–65 y, deuterium reference, ISAK protocol; non-athletes (BMI ~21.5)' } },
-  hastutiAlt: { sex: 'M', sites: ['abd', 'tri'], name: { id: 'Hastuti abdomen + triseps (pria Indonesia)', en: 'Hastuti abdominal + triceps (Indonesian men)' }, age: [18, 65], refs: ['h13'],
-    pop: { id: 'Sampel sama dengan Hastuti Σ4; SEE 3,7% (Σ4: 3,9%)', en: 'Same sample as Hastuti Σ4; SEE 3.7% (Σ4: 3.9%)' } },
+  hastuti: { sex: 'M', sites: ['abd', 'tri'], name: { id: 'Hastuti abdomen + triseps (pria Indonesia)', en: 'Hastuti abdominal + triceps (Indonesian men)' }, age: [18, 65], refs: ['h13'],
+    pop: { id: '292 pria Jawa 18–65 th di Yogyakarta, rujukan deuterium, protokol ISAK; bukan atlet (IMT ±21,5). Uji silang: r 0,87, SEE 3,7%', en: '292 Javanese men aged 18–65 in Yogyakarta, deuterium reference, ISAK protocol; non-athletes (BMI ~21.5). Cross-validation: r 0.87, SEE 3.7%' } },
   dw: { sex: 'both', sites: ['bic', 'tri', 'sub', 'ic'], name: { id: 'Durnin-Womersley 4 titik', en: 'Durnin-Womersley 4-site' }, age: [17, 72], refs: ['dw', 'siri', 'h18'],
-    pop: { id: '481 pria dan wanita 16–72 th; pada wanita Indonesia tanpa bias bermakna dengan titik krista iliaka ISAK (Hastuti 2018)', en: '481 men and women 16–72 y; no significant bias in Indonesian women using the ISAK iliac crest (Hastuti 2018)' } },
+    pop: { id: '481 pria dan wanita 16–72 th; pada wanita Indonesia tanpa bias bermakna dengan titik krista iliaka ISAK (Hastuti 2018); pada pria Indonesia sekitar 1% lebih rendah dari rujukan (Hastuti 2013)', en: '481 men and women 16–72 y; no significant bias in Indonesian women using the ISAK iliac crest (Hastuti 2018); about 1% low in Indonesian men (Hastuti 2013)' } },
   jp3: { sex: 'M', sites: ['chest', 'abd', 'thigh'], name: { id: 'Jackson-Pollock 3 titik (pria)', en: 'Jackson-Pollock 3-site (men)' }, age: [18, 61], refs: ['jp', 'siri'],
     pop: { id: '308 pria 18–61 th', en: '308 men 18–61 y' } },
   jpw3: { sex: 'F', sites: ['tri', 'sil', 'thigh'], name: { id: 'Jackson-Pollock-Ward 3 titik (wanita)', en: 'Jackson-Pollock-Ward 3-site (women)' }, age: [18, 55], refs: ['jpw', 'siri'],
     pop: { id: '249 wanita 18–55 th; hati-hati di atas 40 th', en: '249 women 18–55 y; caution above 40 y' } },
 };
-export const EQ_ORDER = ['hastuti', 'hastutiAlt', 'dw', 'jp3', 'jpw3'];
+export const EQ_ORDER = ['hastuti', 'dw', 'jp3', 'jpw3'];
+// Panduan titik ukur — ringkasan protokol ISAK (dan ACSM untuk titik Jackson-Pollock), ditulis dengan kata-kata sendiri.
+export const GUIDE_GENERAL = {
+  id: 'Ukur di sisi kanan tubuh dengan subjek berdiri santai, dan tandai titik dengan pena lebih dulu. Cubit lipatan kulit beserta lemak di bawahnya dengan ibu jari dan telunjuk, tarik menjauhi otot, lalu pasang rahang kaliper tepat di titik tanda, tegak lurus terhadap lipatan. Baca angka 2 detik setelah tekanan kaliper penuh. Ukur dua kali; bila selisihnya lebih dari 5%, ukur ketiga kalinya. Pakai rerata dua ukuran atau median tiga ukuran.',
+  en: 'Measure on the right side with the subject standing relaxed, and mark the site with a pen first. Grasp the skin and underlying fat between thumb and index finger, pull it away from the muscle, then apply the caliper jaws exactly at the mark, perpendicular to the fold. Read 2 seconds after full caliper pressure. Measure twice; if the two differ by more than 5%, take a third. Use the mean of two or the median of three.',
+};
+export const GUIDE = {
+  tri: { id: 'Belakang lengan atas, setinggi titik tengah garis akromiale–radiale, pada bagian paling belakang otot triseps. Lengan tergantung santai dengan siku lurus. Lipatan vertikal, sejajar sumbu lengan.', en: 'Back of the upper arm, at the level of the mid acromiale–radiale line, over the most posterior part of triceps. Arm hanging relaxed, elbow extended. Vertical fold, parallel to the arm.' },
+  bic: { id: 'Depan lengan atas, setinggi titik tengah akromiale–radiale yang sama, pada bagian paling depan otot biseps. Lipatan vertikal.', en: 'Front of the upper arm, at the same mid acromiale–radiale level, over the most anterior part of biceps. Vertical fold.' },
+  sub: { id: '2 cm dari subskapulare (sudut bawah tulang belikat) pada garis miring 45° ke arah luar-bawah. Lipatan mengikuti garis miring itu. Lengan tergantung santai.', en: '2 cm from the subscapulare (inferior angle of the scapula) along a line running 45° laterally downward. The fold follows that line. Arm hanging relaxed.' },
+  ic: { id: 'Tepat di atas iliokristale (titik paling lateral-atas krista iliaka) pada garis ilio-aksila, yaitu garis tegak dari tengah ketiak. Lengan kanan menyilang dada atau diangkat ke samping. Lipatan hampir horizontal, sedikit menurun ke depan mengikuti garis alami kulit.', en: 'Just above the iliocristale (most lateral-superior point of the iliac crest) on the ilio-axilla line, a vertical line from mid-axilla. Right arm across the chest or abducted. Near-horizontal fold, running slightly downward anteriorly along the natural skin line.' },
+  ss: { id: 'Perpotongan dua garis: garis dari iliospinale (SIAS) ke batas depan ketiak, dan garis horizontal setinggi iliokristale. Lipatan miring sekitar 45° ke bawah dan ke tengah.', en: 'Intersection of two lines: from the iliospinale (ASIS) to the anterior axillary border, and a horizontal line at the level of the iliocristale. Fold runs about 45° downward and medially.' },
+  abd: { id: 'Protokol ISAK (dipakai Hastuti): 5 cm di sebelah kanan omphalion (tengah pusar), setinggi pusar. Lipatan vertikal.', en: 'ISAK protocol (used by Hastuti): 5 cm to the right of the omphalion (centre of the navel), at navel level. Vertical fold.' },
+  abdJp: { id: 'Protokol Jackson-Pollock (ACSM): 2 cm di sebelah kanan pusar. Lipatan vertikal. Titik ini berbeda dari titik ISAK (5 cm); pakai titik yang sesuai persamaan.', en: 'Jackson-Pollock protocol (ACSM): 2 cm to the right of the navel. Vertical fold. This differs from the ISAK site (5 cm); use the site that matches the equation.' },
+  chest: { id: 'Pria: setengah jarak antara garis aksila depan (lipat ketiak depan) dan puting. Lipatan diagonal searah garis ketiak–puting.', en: 'Men: halfway between the anterior axillary line (front armpit fold) and the nipple. Diagonal fold along the armpit–nipple line.' },
+  thigh: { id: 'Garis tengah depan paha, di tengah antara lipat paha (inguinal) dan batas atas tempurung lutut. Subjek berdiri dengan berat badan bertumpu pada tungkai kiri. Lipatan vertikal.', en: 'Anterior midline of the thigh, halfway between the inguinal crease and the top of the patella. Subject stands with weight on the left leg. Vertical fold.' },
+  sil: { id: 'Tepat di atas krista iliaka pada garis aksila depan. Lipatan diagonal mengikuti sudut alami krista iliaka.', en: 'Just above the iliac crest on the anterior axillary line. Diagonal fold following the natural angle of the iliac crest.' },
+  calf: { id: 'Sisi dalam betis kanan setinggi lingkar betis terbesar. Kaki kanan di atas bangku dengan lutut sekitar 90°. Lipatan vertikal.', en: 'Medial side of the right calf at the level of maximal girth. Right foot on a box with the knee at about 90°. Vertical fold.' },
+  hum: { id: 'Lengan kanan diangkat ke depan setinggi bahu, siku ditekuk 90°. Ukur jarak epikondilus medial dan lateral humerus dengan kaliper lebar tulang; ujung kaliper mengarah ke atas membagi dua sudut siku, dengan tekanan kuat.', en: 'Right arm raised forward to shoulder height, elbow flexed 90°. Measure between the medial and lateral humeral epicondyles with a bone caliper, branches pointing upward bisecting the elbow angle, with firm pressure.' },
+  fem: { id: 'Subjek duduk dengan lutut kanan ditekuk 90°. Ukur jarak epikondilus medial dan lateral femur; ujung kaliper mengarah ke bawah membagi dua sudut lutut, dengan tekanan kuat.', en: 'Subject seated with the right knee flexed 90°. Measure between the medial and lateral femoral epicondyles, branches pointing downward bisecting the knee angle, with firm pressure.' },
+  arm: { id: 'Bahu difleksikan 90° (lengan ke depan setinggi bahu), siku ditekuk sekitar 45°, tangan mengepal, dan otot lengan dikontraksikan maksimal. Pita ukur tegak lurus sumbu lengan pada lingkar terbesar.', en: 'Shoulder flexed to 90° (arm forward at shoulder height), elbow flexed about 45°, fist clenched and arm muscles maximally contracted. Tape perpendicular to the arm at the largest girth.' },
+  calfg: { id: 'Berdiri tegak dengan berat badan merata di kedua kaki. Pita ukur tegak lurus sumbu tungkai pada lingkar betis terbesar.', en: 'Stand upright with weight evenly on both feet. Tape perpendicular to the leg at the largest calf girth.' },
+};
+export const GUIDE_SRC = {
+  id: 'Ringkasan protokol ISAK; titik Jackson-Pollock menurut ACSM. Ditulis ulang dengan kata-kata sendiri dan belum dicocokkan dengan manual ISAK cetak.',
+  en: 'Summary of the ISAK protocol; Jackson-Pollock sites per ACSM. Rewritten in our own words and not yet checked against the printed ISAK manual.',
+};
+// Nama 13 kategori somatotipe (Carter 2002) dan penjelasannya
+export const SOMATO_CAT = {
+  central: ['Central', { id: 'tidak ada komponen yang berbeda lebih dari 1 dari dua lainnya', en: 'no component differs by more than 1 from the other two' }],
+  'balanced-endo': ['Balanced endomorph', { id: 'endomorfi dominan; mesomorfi dan ektomorfi setara', en: 'endomorphy dominant; mesomorphy and ectomorphy equal' }],
+  'mesoic-endo': ['Mesomorphic endomorph', { id: 'endomorfi dominan; mesomorfi lebih besar dari ektomorfi', en: 'endomorphy dominant; mesomorphy greater than ectomorphy' }],
+  'endo-meso': ['Mesomorph-endomorph', { id: 'endomorfi dan mesomorfi setara; ektomorfi lebih kecil', en: 'endomorphy and mesomorphy equal; ectomorphy smaller' }],
+  'endoic-meso': ['Endomorphic mesomorph', { id: 'mesomorfi dominan; endomorfi lebih besar dari ektomorfi', en: 'mesomorphy dominant; endomorphy greater than ectomorphy' }],
+  'balanced-meso': ['Balanced mesomorph', { id: 'mesomorfi dominan; endomorfi dan ektomorfi setara', en: 'mesomorphy dominant; endomorphy and ectomorphy equal' }],
+  'ectoic-meso': ['Ectomorphic mesomorph', { id: 'mesomorfi dominan; ektomorfi lebih besar dari endomorfi', en: 'mesomorphy dominant; ectomorphy greater than endomorphy' }],
+  'ecto-meso': ['Mesomorph-ectomorph', { id: 'mesomorfi dan ektomorfi setara; endomorfi lebih kecil', en: 'mesomorphy and ectomorphy equal; endomorphy smaller' }],
+  'mesoic-ecto': ['Mesomorphic ectomorph', { id: 'ektomorfi dominan; mesomorfi lebih besar dari endomorfi', en: 'ectomorphy dominant; mesomorphy greater than endomorphy' }],
+  'balanced-ecto': ['Balanced ectomorph', { id: 'ektomorfi dominan; endomorfi dan mesomorfi setara', en: 'ectomorphy dominant; endomorphy and mesomorphy equal' }],
+  'endoic-ecto': ['Endomorphic ectomorph', { id: 'ektomorfi dominan; endomorfi lebih besar dari mesomorfi', en: 'ectomorphy dominant; endomorphy greater than mesomorphy' }],
+  'ecto-endo': ['Endomorph-ectomorph', { id: 'endomorfi dan ektomorfi setara; mesomorfi lebih kecil', en: 'endomorphy and ectomorphy equal; mesomorphy smaller' }],
+  'ectoic-endo': ['Ectomorphic endomorph', { id: 'endomorfi dominan; ektomorfi lebih besar dari mesomorfi', en: 'endomorphy dominant; ectomorphy greater than mesomorphy' }],
+};
 export const SOMATO_SITES = ['tri', 'sub', 'ss', 'calf', 'hum', 'fem', 'arm', 'calfg'];
 
 export const M10_FIELDS = [
@@ -60,7 +100,7 @@ export const M510_T = {
   id: {
     m5Sub: 'Persentase lemak dari skinfold, target berat badan, dan somatotipe Heath-Carter',
     m5Pop: 'Untuk dewasa. Hasil hanya boleh dibandingkan dengan persamaan dan protokol titik ukur yang sama.',
-    tabFat: '%Lemak', tabSomato: 'Somatotipe', eqLbl: 'Persamaan', sitesHead: 'Titik ukur',
+    tabFat: '%Lemak', tabSomato: 'Somatotipe', eqLbl: 'Persamaan', sitesHead: 'Titik ukur', howTo: 'Cara ukur', hideHowTo: 'Tutup cara ukur', genTech: 'Teknik umum skinfold',
     sumRaw: 'Σ skinfold', sumNote: 'Untuk pemantauan atlet, Σ skinfold mentah lebih andal karena tidak bergantung pada asumsi persamaan.',
     density: 'Densitas tubuh', pctFat: '%Lemak', fatMass: 'Massa lemak', ffmRow: 'FFM', targetRow: 'BB pada target %lemak',
     useFfm: 'Pakai FFM ini di Modul 4', usedFfm: 'FFM disalin ke Modul 4', fatNeed: 'Isi semua titik ukur dan data dasar untuk melihat hasil.',
@@ -68,7 +108,7 @@ export const M510_T = {
     somNeed: 'Isi 4 lipatan, 2 lebar tulang, 2 lingkar, serta BB dan TB.', somRating: 'Somatotipe', hwrRow: 'HWR (TB/∛BB)',
     endo: 'Endomorfi', meso: 'Mesomorfi', ecto: 'Ektomorfi', xy: 'Koordinat somatochart (X, Y)',
     somNote: 'Endomorfi = lemak relatif; mesomorfi = kekokohan otot-rangka relatif; ektomorfi = linearitas relatif. Ukur sesuai protokol ISAK.',
-    chartTitle: 'Posisi pada somatochart', chartEndo: 'Endomorf', chartMeso: 'Mesomorf', chartEcto: 'Ektomorf',
+    chartTitle: 'Posisi pada somatochart', chartEndo: 'ENDOMORFI', chartMeso: 'MESOMORFI', chartEcto: 'EKTOMORFI', catRow: 'Kategori', catNote: 'Kategori menurut 13 kategori Carter (2002); dua komponen dianggap setara bila selisihnya ≤0,5. Garis putus-putus adalah batas tempat dua komponen sama besar.',
     m5Sources: 'Sumber: Hastuti dkk. 2013 & 2018; Durnin & Womersley 1974; Jackson & Pollock 1978; Jackson, Pollock & Ward 1980; Siri 1961; Ackland dkk. 2012; Carter 2002.',
     m10Sub: 'Laju keringat, perubahan berat badan, dan peringatan minum berlebihan',
     m10Pop: 'Ukur pada sesi latihan yang mewakili kondisi biasa; laju keringat berubah dengan cuaca, intensitas, dan pakaian.',
@@ -83,7 +123,7 @@ export const M510_T = {
   en: {
     m5Sub: 'Body fat from skinfolds, target body mass, and Heath-Carter somatotype',
     m5Pop: 'For adults. Compare results only with the same equation and the same site protocol.',
-    tabFat: '%Fat', tabSomato: 'Somatotype', eqLbl: 'Equation', sitesHead: 'Measurement sites',
+    tabFat: '%Fat', tabSomato: 'Somatotype', eqLbl: 'Equation', sitesHead: 'Measurement sites', howTo: 'How to measure', hideHowTo: 'Hide how to measure', genTech: 'General skinfold technique',
     sumRaw: 'Σ skinfolds', sumNote: 'For athlete monitoring, the raw Σ skinfolds is more reliable because it does not depend on equation assumptions.',
     density: 'Body density', pctFat: '%Fat', fatMass: 'Fat mass', ffmRow: 'FFM', targetRow: 'Body mass at target %fat',
     useFfm: 'Use this FFM in Module 4', usedFfm: 'FFM copied to Module 4', fatNeed: 'Enter all sites and the basics to see results.',
@@ -91,7 +131,7 @@ export const M510_T = {
     somNeed: 'Enter 4 skinfolds, 2 bone breadths, 2 girths, plus body mass and height.', somRating: 'Somatotype', hwrRow: 'HWR (height/∛mass)',
     endo: 'Endomorphy', meso: 'Mesomorphy', ecto: 'Ectomorphy', xy: 'Somatochart coordinates (X, Y)',
     somNote: 'Endomorphy = relative fatness; mesomorphy = relative musculoskeletal robustness; ectomorphy = relative linearity. Measure per ISAK protocol.',
-    chartTitle: 'Position on the somatochart', chartEndo: 'Endomorph', chartMeso: 'Mesomorph', chartEcto: 'Ectomorph',
+    chartTitle: 'Position on the somatochart', chartEndo: 'ENDOMORPHY', chartMeso: 'MESOMORPHY', chartEcto: 'ECTOMORPHY', catRow: 'Category', catNote: 'Category per Carter’s 13 categories (2002); two components count as equal when they differ by ≤0.5. Dashed lines mark where two components are equal.',
     m5Sources: 'Sources: Hastuti et al. 2013 & 2018; Durnin & Womersley 1974; Jackson & Pollock 1978; Jackson, Pollock & Ward 1980; Siri 1961; Ackland et al. 2012; Carter 2002.',
     m10Sub: 'Sweat rate, body mass change and overdrinking warning',
     m10Pop: 'Measure in a session representative of usual conditions; sweat rate varies with weather, intensity and clothing.',

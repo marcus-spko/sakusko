@@ -168,3 +168,21 @@ a.btn-sec { text-decoration: none; }
 .lsirow { display: flex; flex-direction: column; gap: 6px; }
 .lsipair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .lsipair .lbl { font-size: 12px; }
+
+/* PAR-Q+ digital */
+.pqq { gap: 8px; }
+.pqcap { font-weight: 800; }
+.pqhead { font-size: 15px; }
+.pqsubs { display: flex; flex-direction: column; gap: 14px; margin-top: 6px; padding-left: 12px; border-left: 3px solid var(--line); }
+.pqchips { flex-direction: row; flex-wrap: wrap; }
+.pqlist .inbox input { font-size: 15px; font-weight: 600; }
+.pqbox { display: flex; flex-direction: column; gap: 8px; border: 2px solid var(--line); border-radius: 14px; padding: 12px 14px; background: #fff; margin-bottom: 10px; }
+.pqbox ul, ul.pqnotes { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.45; }
+ul.pqnotes { color: var(--muted); margin-bottom: 10px; }
+.pqbox.ok { border-color: #15803D; background: #F0FDF4; }
+.pqbox.stop { border-color: #C2410C; background: #FFF1E6; }
+.pqbox.warn { border-color: #F59E0B; background: #FFFBEB; }
+.pqbox.info { border-color: var(--header-ink); }
+.pqtext { font-size: 13px; font-weight: 500; line-height: 1.5; color: var(--ink); }
+.guidebtn { margin-top: -8px; }
+.guidebox { margin-top: -6px; }

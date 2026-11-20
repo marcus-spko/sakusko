@@ -1,8 +1,8 @@
 // SakuSKO — definisi tes Modul 2 (VO₂max lapangan) dan Modul 3 (kekuatan).
 // Setiap tes: isian, data dasar yang dibutuhkan, protokol singkat, populasi asal, sumber, dan fungsi hitung.
 import {
-  vo2Cooper, vo2Rockport, legerSpeed, vo2Leger, vo2Run24, vo2Queens, harvardLong, harvardShort,
-  vo2YoYo1, vo2Ift, sixMwtPred, rmEpley, rmBrzycki, gripCut, stsCut,
+  vo2Cooper, vo2Rockport, legerSpeed, vo2Leger, vo2Queens,
+  vo2YoYo1, sixMwtPred, rmEpley, rmBrzycki, gripCut, stsCut,
 } from './formulas.js';
 
 const VO2U = { id: 'mL/kg/mnt', en: 'mL/kg/min' };
@@ -18,8 +18,6 @@ export const REF = {
   kline: { ref: 'Kline GM, Porcari JP, Hintermeister R, Freedson PS, Ward A, McCarron RF, et al. Estimation of VO2max from a one-mile track walk, gender, age, and body weight. Med Sci Sports Exerc. 1987;19(3):253-9.', doi: null },
   leger: { ref: 'Léger LA, Mercier D, Gadoury C, Lambert J. The multistage 20 metre shuttle run test for aerobic fitness. J Sports Sci. 1988;6(2):93-101.', doi: '10.1080/02640418808729800' },
   mcardle: { ref: 'McArdle WD, Katch FI, Pechar GS, Jacobson L, Ruck S. Reliability and interrelationships between maximal oxygen intake, physical work capacity and step-test scores in college women. Med Sci Sports. 1972;4(4):182-6.', doi: null },
-  golding: { ref: 'Golding LA, editor. YMCA fitness testing and assessment manual. 4th ed. Champaign (IL): Human Kinetics; 2000.', doi: null },
-  brouha: { ref: 'Brouha L. The step test: a simple method of measuring physical fitness for muscular work in young men. Res Q Am Assoc Health Phys Educ. 1943;14(1):31-7.', doi: '10.1080/10671188.1943.10621204' },
   bangsbo: { ref: 'Bangsbo J, Iaia FM, Krustrup P. The Yo-Yo intermittent recovery test: a useful tool for evaluation of physical performance in intermittent sports. Sports Med. 2008;38(1):37-51.', doi: '10.2165/00007256-200838010-00004' },
   buchheit: { ref: 'Buchheit M. The 30-15 intermittent fitness test: accuracy for individualizing interval training of young intermittent sport players. J Strength Cond Res. 2008;22(2):365-74.', doi: '10.1519/JSC.0b013e3181635b2e' },
   cheng: { ref: 'Cheng R, Lin W, Song L, Pan J, Wang N, Li X. Re-examining the reliability and validity of 30-15IFT for VO2max prediction in male collegiate soccer players: a pilot study. Front Physiol. 2025;16:1668250.', doi: '10.3389/fphys.2025.1668250' },
@@ -83,19 +81,6 @@ export const TESTS = {
       },
     },
     {
-      id: 'run24', short: 'Rumus lari 1,5 mil', name: { id: 'Lari 2,4 km', en: '2.4 km run' }, needs: [],
-      fields: minSecFields([5, 40]),
-      protocol: { id: 'Tempuh 2,4 km (1,5 mil) secepat mungkin di lintasan terukur.', en: 'Cover 2.4 km (1.5 miles) as fast as possible on a measured track.' },
-      pop: { id: 'Rumus lazim untuk uji 1,5 mil (Cooper Institute), dikutip bahan ajar ACSM', en: 'Common formula for the 1.5-mile test (Cooper Institute), cited in ACSM teaching materials' },
-      refs: [],
-      caveat: { id: 'Naskah asli persamaan ini belum ditemukan; koefisien cocok di beberapa sumber sekunder. Butuh usaha maksimal.', en: 'The original paper for this equation has not been located; coefficients match across several secondary sources. Requires maximal effort.' },
-      calc(v, b, c) {
-        const t = timeOf(v), r = vo2Run24(t);
-        return { val: r, f: [c.L === 'id' ? 'VO₂max = 483 / waktu (menit) + 3,5' : 'VO₂max = 483 / time (min) + 3.5'], s: [`483 / ${c.f2(t)} + 3,5 = ${c.f1(r)}`],
-          copy: c.L === 'id' ? `Lari 2,4 km: ${mmss(v)} menit → VO₂max ${c.f1(r)} ${c.u}` : `2.4 km run: ${mmss(v)} min → VO₂max ${c.f1(r)} ${c.u}` };
-      },
-    },
-    {
       id: 'queens', short: 'McArdle 1972', name: { id: 'Step test Queens College', en: 'Queens College step test' }, needs: ['sex'],
       fields: [{ k: 'c15', label: { id: 'Hitungan nadi 15 detik', en: '15-second pulse count' }, unit: { id: 'denyut', en: 'beats' }, lim: [10, 60], req: true,
         hint: { id: 'Mulai 5 detik setelah berhenti melangkah; aplikasi mengalikan 4.', en: 'Start 5 seconds after stepping stops; the app multiplies by 4.' } }],
@@ -108,42 +93,6 @@ export const TESTS = {
           f: [c.L === 'id' ? 'Pria: VO₂max = 111,33 − 0,42 × HR' : 'Men: VO₂max = 111.33 − 0.42 × HR', c.L === 'id' ? 'Wanita: VO₂max = 65,81 − 0,1847 × HR' : 'Women: VO₂max = 65.81 − 0.1847 × HR', 'HR = hitungan 15 dtk × 4'],
           s: [`HR = ${c.f0(v.c15)} × 4 = ${c.f0(hr)}`, male ? `111,33 − 0,42 × ${c.f0(hr)} = ${c.f1(r)}` : `65,81 − 0,1847 × ${c.f0(hr)} = ${c.f1(r)}`],
           copy: c.L === 'id' ? `Step test Queens College: HR pemulihan ${c.f0(hr)} → VO₂max ${c.f1(r)} ${c.u}` : `Queens College step test: recovery HR ${c.f0(hr)} → VO₂max ${c.f1(r)} ${c.u}` };
-      },
-    },
-    {
-      id: 'ymca', short: 'YMCA (Golding 2000)', name: { id: 'Step test YMCA 3 menit', en: 'YMCA 3-minute step test' }, needs: [], noVo2: true,
-      fields: [{ k: 'hr1', label: { id: 'Hitungan nadi 1 menit penuh', en: 'Full 1-minute pulse count' }, unit: { id: 'kali/mnt', en: 'bpm' }, lim: [40, 220], req: true,
-        hint: { id: 'Duduk segera, mulai hitung dalam 5 detik, selama 60 detik.', en: 'Sit immediately, start counting within 5 seconds, for 60 seconds.' } }],
-      protocol: { id: 'Bangku 30,5 cm (12 inci); metronom 96 (24 langkah/menit); 3 menit.', en: 'Bench 30.5 cm (12 in); metronome 96 (24 steps/min); 3 minutes.' },
-      pop: { id: 'Protokol YMCA; tes ini tidak menghasilkan VO₂max', en: 'YMCA protocol; this test does not yield VO₂max' },
-      refs: ['golding'],
-      caveat: { id: 'Tabel norma YMCA antarsumber berbeda dan tabel resmi belum tersedia, jadi aplikasi hanya menampilkan denyut pemulihan tanpa kategori. Paling berguna untuk membandingkan hasil orang yang sama dari waktu ke waktu.', en: 'YMCA norm tables differ across sources and the official table is not available, so the app shows recovery HR only, without a category. Most useful for tracking the same person over time.' },
-      calc(v, b, c) {
-        return { val: v.hr1, mainLabel: c.L === 'id' ? 'Denyut pemulihan 1 menit' : '1-minute recovery HR', unit: c.L === 'id' ? 'kali/mnt' : 'bpm', d: 0,
-          f: [c.L === 'id' ? 'Hasil = jumlah denyut selama 1 menit penuh setelah tes (tanpa rumus)' : 'Result = beats counted over a full minute after the test (no formula)'], s: [],
-          copy: c.L === 'id' ? `Step test YMCA: denyut pemulihan 1 menit ${c.f0(v.hr1)} kali/mnt (tanpa kategori)` : `YMCA step test: 1-min recovery HR ${c.f0(v.hr1)} bpm (no category)` };
-      },
-    },
-    {
-      id: 'harvard', short: 'Brouha 1943', name: { id: 'Step test Harvard', en: 'Harvard step test' }, needs: [], noVo2: true,
-      fields: [
-        { k: 'dur', label: { id: 'Lama melangkah', en: 'Stepping duration' }, unit: { id: 'dtk', en: 's' }, lim: [30, 300], req: true, hint: { id: 'Maksimal 300 detik (5 menit); isi waktu saat berhenti bila tidak sanggup.', en: 'Maximum 300 s (5 min); enter the stop time if unable to continue.' } },
-        { k: 'c1', label: { id: 'Hitungan nadi 1–1,5 menit', en: 'Pulse count at 1–1.5 min' }, unit: { id: 'denyut', en: 'beats' }, lim: [20, 150], req: true },
-        { k: 'c2', label: { id: 'Hitungan nadi 2–2,5 menit', en: 'Pulse count at 2–2.5 min' }, unit: { id: 'denyut', en: 'beats' }, lim: [20, 150], req: false, tag: { id: 'Bentuk panjang', en: 'Long form' } },
-        { k: 'c3', label: { id: 'Hitungan nadi 3–3,5 menit', en: 'Pulse count at 3–3.5 min' }, unit: { id: 'denyut', en: 'beats' }, lim: [20, 150], req: false, tag: { id: 'Bentuk panjang', en: 'Long form' } },
-      ],
-      protocol: { id: 'Bangku 50,8 cm pria / ±40 cm wanita; 30 langkah/menit; sampai 5 menit. Hitungan nadi 30 detik saat pemulihan.', en: 'Bench 50.8 cm men / ~40 cm women; 30 steps/min; up to 5 minutes. 30-second pulse counts during recovery.' },
-      pop: { id: 'Pria muda (Brouha 1943); hasil berupa indeks kebugaran, bukan VO₂max', en: 'Young men (Brouha 1943); the result is a fitness index, not VO₂max' },
-      refs: ['brouha'],
-      caveat: { id: 'Tabel kategori indeks antarsumber berbeda, jadi aplikasi hanya menampilkan angka indeks. Isi ketiga hitungan untuk bentuk panjang; bila hanya hitungan pertama, dipakai bentuk pendek.', en: 'Index category tables differ across sources, so the app shows the index only. Enter all three counts for the long form; with only the first count, the short form is used.' },
-      calc(v, b, c) {
-        const long = Number.isFinite(v.c2) && Number.isFinite(v.c3);
-        const r = long ? harvardLong(v.dur, v.c1, v.c2, v.c3) : harvardShort(v.dur, v.c1);
-        const form = c.L === 'id' ? (long ? 'bentuk panjang' : 'bentuk pendek') : (long ? 'long form' : 'short form');
-        return { val: r, mainLabel: c.L === 'id' ? `Indeks kebugaran (${form})` : `Fitness index (${form})`, unit: '', d: 1,
-          f: [c.L === 'id' ? 'Panjang: 100 × durasi(dtk) / (2 × jumlah 3 hitungan)' : 'Long: 100 × duration(s) / (2 × sum of 3 counts)', c.L === 'id' ? 'Pendek: 100 × durasi(dtk) / (5,5 × hitungan 1–1,5 menit)' : 'Short: 100 × duration(s) / (5.5 × count at 1–1.5 min)'],
-          s: [long ? `100 × ${c.f0(v.dur)} / (2 × ${c.f0(v.c1 + v.c2 + v.c3)}) = ${c.f1(r)}` : `100 × ${c.f0(v.dur)} / (5,5 × ${c.f0(v.c1)}) = ${c.f1(r)}`],
-          copy: c.L === 'id' ? `Step test Harvard: ${c.f0(v.dur)} dtk → indeks ${c.f1(r)} (${form}, tanpa kategori)` : `Harvard step test: ${c.f0(v.dur)} s → index ${c.f1(r)} (${form}, no category)` };
       },
     },
     {
@@ -160,20 +109,17 @@ export const TESTS = {
       },
     },
     {
-      id: 'ift', short: 'Buchheit 2008', name: { id: '30-15 IFT', en: '30-15 IFT' }, needs: ['age', 'sex', 'weight'],
+      id: 'ift', short: 'Buchheit 2008', name: { id: '30-15 IFT (VIFT)', en: '30-15 IFT (VIFT)' }, needs: [], noVo2: true,
       fields: [{ k: 'vift', label: { id: 'Kecepatan akhir (VIFT)', en: 'Final speed (VIFT)' }, unit: { id: 'km/jam', en: 'km/h' }, lim: [8, 30], req: true, dec: true,
         hint: { id: 'Kecepatan tahap terakhir yang diselesaikan.', en: 'Speed of the last completed stage.' } }],
       protocol: { id: 'Lari 30 detik di lintasan 40 m, jalan 15 detik; kecepatan naik 0,5 km/jam tiap tahap 45 detik.', en: '30 s runs over a 40 m course with 15 s walking; speed rises 0.5 km/h every 45 s stage.' },
-      pop: { id: 'Studi Buchheit 2008: 59 pemain olahraga intermiten muda, usia 16,2 ± 2,3 tahun', en: 'Buchheit 2008 study: 59 young intermittent-sport players aged 16.2 ± 2.3 years' }, ageRange: [14, 20],
-      ageNote: { id: 'Pada VIFT di atas ±12,6 km/jam, rumus ini menghasilkan VO₂max yang makin tinggi seiring usia, berlawanan dengan fisiologi. Untuk dewasa, pakai VIFT untuk meresepkan latihan dan anggap angka VO₂max sangat kasar.', en: 'Above a VIFT of ~12.6 km/h this equation gives a VO₂max that rises with age, contrary to physiology. For adults, use VIFT to prescribe training and treat the VO₂max figure as very rough.' },
+      pop: { id: 'Studi Buchheit 2008: 59 pemain olahraga intermiten muda, usia 16,2 ± 2,3 tahun; hasil dipakai untuk meresepkan latihan interval', en: 'Buchheit 2008 study: 59 young intermittent-sport players aged 16.2 ± 2.3 years; the result is used to prescribe interval training' },
       refs: ['buchheit', 'cheng'],
-      caveat: { id: 'Studi 2025 pada pemain sepak bola mahasiswa menemukan bias sistematis rumus umum ini terhadap uji lab; VIFT paling andal untuk memantau dan meresepkan latihan interval, bukan menggantikan uji lab.', en: 'A 2025 study in collegiate soccer players found systematic bias of this general equation versus lab testing; VIFT is most reliable for monitoring and prescribing interval training, not replacing lab tests.' },
+      caveat: { id: 'Aplikasi sengaja tidak menghitung VO₂max dari tes ini: asal persamaannya belum terkonfirmasi dan studi 2025 pada pemain sepak bola mahasiswa menemukan bias sistematis terhadap uji lab. VIFT paling berguna untuk memantau kebugaran intermiten dan meresepkan latihan interval.', en: 'The app deliberately does not compute VO₂max from this test: the equation’s origin is unconfirmed and a 2025 study in collegiate soccer players found systematic bias versus lab testing. VIFT is most useful for monitoring intermittent fitness and prescribing interval training.' },
       calc(v, b, c) {
-        const male = b.sex === 'M', G = male ? 1 : 2, r = vo2Ift(male, b.age, b.weight, v.vift);
-        return { val: r,
-          f: ['VO₂max = 28,3 − 2,15G − 0,741A − 0,0357W + 0,0586A×VIFT + 1,03VIFT', c.L === 'id' ? 'G: pria 1, wanita 2; A usia; W berat badan (kg)' : 'G: male 1, female 2; A age; W body mass (kg)'],
-          s: [`28,3 − 2,15×${G} − 0,741×${c.f0(b.age)} − 0,0357×${c.f1(b.weight)} + 0,0586×${c.f0(b.age)}×${c.f1(v.vift)} + 1,03×${c.f1(v.vift)} = ${c.f1(r)}`],
-          copy: c.L === 'id' ? `30-15 IFT: VIFT ${c.f1(v.vift)} km/jam → VO₂max ${c.f1(r)} ${c.u}` : `30-15 IFT: VIFT ${c.f1(v.vift)} km/h → VO₂max ${c.f1(r)} ${c.u}` };
+        return { val: v.vift, mainLabel: 'VIFT', unit: c.L === 'id' ? 'km/jam' : 'km/h', d: 1,
+          f: [c.L === 'id' ? 'Hasil = kecepatan tahap terakhir yang diselesaikan (tanpa rumus)' : 'Result = speed of the last completed stage (no formula)'], s: [],
+          copy: c.L === 'id' ? `30-15 IFT: VIFT ${c.f1(v.vift)} km/jam` : `30-15 IFT: VIFT ${c.f1(v.vift)} km/h` };
       },
     },
     {
