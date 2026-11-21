@@ -10,7 +10,6 @@ import { M510_REF, SITES, EQS, EQ_ORDER, SOMATO_SITES, M10_FIELDS, M510_T, GUIDE
 import { NYPR, nyprSvg, NYPR_REF } from './nypr.js';
 import { M79_REF, SUPPS, M7_SAFE, LSI_ROWS, HQ_FIELDS, M79_T } from './m79.js';
 import { SOS, SOS_REF, SOS_T, CONC } from './darurat.js';
-import { SCAT6, SCAT6C, scat6Scores, childScat6Scores } from './scat6.js';
 import { MODULES, T, M1_FORMULAS, KARVONEN_REF, GLOSSARY, ABOUT } from './i18n.js';
 import { S, load, save, clear, expireIfDue, expiresAt, isEmpty } from './session.js';
 import { startTitleCase } from './titlecase.js';
@@ -1441,7 +1440,7 @@ function sosTimer(sp) {
     <div class="tmrbtns"><button type="button" class="tmrbtn" data-tmr="go">${esc(main)}</button><button type="button" class="tmrbtn ghost" data-tmr="reset">${esc(T.reset)}</button></div>
     ${log}</section>`;
 }
-UI.hcat = UI.hcat || 'ehs';
+UI.hcat = UI.hcat || { panas: 'ehs', trauma: 'bld' }; // kategori terpilih per kartu
 const sosW = () => { const w = parse(S.base.weight); return S.base.weight !== '' && !m1State().allErr.weight && Number.isFinite(w) ? w : NaN; };
 function sosDose(sp) {
   const T = TS(), w = sosW(), needW = sp.dose.some(d => d.calc);
@@ -1461,9 +1460,9 @@ function renderSosCard(k) {
   const T = TS();
   let body = '';
   if (sp.cats) {
-    if (!sp.cats.some(c => c.k === UI.hcat)) UI.hcat = sp.cats[sp.cats.length - 1].k;
-    const c = sp.cats.find(x => x.k === UI.hcat);
-    body = `<section class="card sossec" style="margin-top:14px"><h2 class="sosk">${esc(T.pembedaHead.toUpperCase())}</h2><ul class="sosul">${sp.pembeda.map(x => `<li>${esc(x[lang])}</li>`).join('')}</ul></section>
+    if (!sp.cats.some(c => c.k === UI.hcat[sp.k])) UI.hcat[sp.k] = sp.cats[0].k;
+    const c = sp.cats.find(x => x.k === UI.hcat[sp.k]);
+    body = `<section class="card sossec" style="margin-top:14px"><h2 class="sosk">${esc((sp.pembedaLbl ? sp.pembedaLbl[lang] : T.pembedaHead).toUpperCase())}</h2><ul class="sosul">${sp.pembeda.map(x => `<li>${esc(x[lang])}</li>`).join('')}</ul></section>
       <section class="card" style="margin-top:14px"><h2 class="sosk" id="hcatLbl">${esc(T.catLbl.toUpperCase())}</h2><div class="catgrid" role="group" aria-labelledby="hcatLbl">${sp.cats.map(x => `<button type="button" class="catbtn" data-hcat="${x.k}" aria-pressed="${x.k === c.k}">${esc(x.name[lang])}</button>`).join('')}</div></section>
       ${sosSec('red', `${T.kenali} · ${c.name[lang]}`, c.kenali)}${sosSec('red', T.lakukan, c.lakukan, true)}${c.timer ? sosTimer({ k: sp.k, timer: c.timer }) : ''}${sosSec('', T.jangan, sp.jangan)}${sosSec('', T.lanjut, c.lanjut)}`;
   } else {
@@ -1480,148 +1479,47 @@ function renderSosCard(k) {
 // Konkusi (tab: di lapangan / tahapan kembali / SCAT6)
 UI.ctab = UI.ctab || 0;
 const concList = (attr, list, store, showEn) => list.map((x, i) => `<label class="ckrow"><input type="checkbox" data-${attr}="${i}" ${store[i] ? 'checked' : ''}><span><span>${esc(x[lang])}</span>${showEn && lang === 'id' ? `<span class="cken">${esc(x.en)}</span>` : ''}</span></label>`).join('');
+function concState() {
+  const c = S.sos, nrf = Object.values(c.rf).filter(Boolean).length, nrm = Object.values(c.rm).filter(Boolean).length;
+  const nos = CONC.signs.filter((_, i) => c.os[i]).length, sy = !!c.os.sy;
+  return { nrf, nrm, nos, sy, level: nrf ? 'red' : (nrm || nos || sy) ? 'sus' : 'none' };
+}
 function concCopy() {
-  const T = TS(), c = S.sos, rf = CONC.redFlags.filter((_, i) => c.rf[i]), rm = CONC.remove.filter((_, i) => c.rm[i]);
-  const lines = [];
-  if (rf.length) lines.push(`${T.copyRf}: ${rf.map(x => x[lang]).join('; ')}`);
-  if (rm.length) lines.push(`${T.copyRm}: ${rm.map(x => x[lang]).join('; ')}`);
-  if (c.rts !== '') lines.push(`${T.copyStep}: ${Number(c.rts) + 1} – ${CONC.rts[c.rts][0][lang]}`);
-  lines.push(...sc6CopyLines());
+  const T = TS(), c = S.sos, st = concState(), lines = [];
+  const pick = (list, store) => list.filter((_, i) => store[i]).map(x => x[lang]).join('; ');
+  if (st.nrf) lines.push(`${T.copyRf}: ${pick(CONC.redFlags, c.rf)}`);
+  if (st.nrm) lines.push(`${T.copyRm}: ${pick(CONC.remove, c.rm)}`);
+  if (st.nos) lines.push(`${T.copyOs}: ${pick(CONC.signs, c.os)}`);
+  if (st.sy) lines.push(T.copySy);
   if (!lines.length) return null;
+  lines.push(`${T.copyDec}: ${st.level === 'red' ? T.decRedShort : T.decSusShort}`);
   const body = [...lines, t().srcLine(T.copySrc)], bs = baseSummary();
   return { text: [`${T.concCopyHead} · ${todayStr()}`, ...(bs ? [`${t().baseLabel}: ${bs}`] : []), ...body].join('\n'), body };
 }
 function concOut() {
-  const T = TS(), c = S.sos, nrf = Object.values(c.rf).filter(Boolean).length, nrm = Object.values(c.rm).filter(Boolean).length;
-  if (UI.ctab === 0) return `<section class="card sossec red" style="margin-top:14px"><h2 class="sosk">${esc(T.rfHead.toUpperCase())}</h2><span class="hint">${esc(T.rfHint)}</span>${concList('rf', CONC.redFlags, c.rf, true)}</section>
-    ${nrf ? `<div class="pqbox danger" style="margin-top:14px"><span>${esc(T.rfOn(nrf))}</span></div>` : ''}
+  const T = TS(), c = S.sos, st = concState();
+  if (UI.ctab === 0) {
+    const dec = st.level === 'red' ? `<div class="pqbox danger" style="margin-top:14px"><span><strong>${esc(T.decRedT)}</strong> ${esc(T.decRed)}</span></div>`
+      : st.level === 'sus' ? `<div class="pqbox warn" style="margin-top:14px"><span><strong>${esc(T.decSusT)}</strong> ${esc(T.decSus)}</span></div>`
+      : `<div class="pqbox ok" style="margin-top:14px"><span><strong>${esc(T.decNoneT)}</strong> ${esc(T.decNone)}</span></div>`;
+    const dd = st.level === 'none' ? '' : `<section class="card sossec" style="margin-top:14px"><h2 class="sosk">${esc(T.doHead.toUpperCase())}</h2><ul class="sosul">${T.doList.map(x => `<li>${esc(x)}</li>`).join('')}</ul></section>
+      <section class="card sossec red" style="margin-top:14px"><h2 class="sosk">${esc(T.dontHead.toUpperCase())}</h2><ul class="sosul">${T.dontList.map(x => `<li>${esc(x)}</li>`).join('')}</ul></section>`;
+    return `<section class="card" style="margin-top:14px"><ol class="steps"><li><span class="stn">1</span><span class="stx"><span class="stt">${esc(T.flow1)}</span></span></li><li><span class="stn">2</span><span class="stx"><span class="stt">${esc(T.flow2)}</span></span></li><li><span class="stn">3</span><span class="stx"><span class="stt">${esc(T.flow3)}</span></span></li></ol></section>
+    <section class="card sossec red" style="margin-top:14px"><h2 class="sosk">${esc(T.rfHead.toUpperCase())}</h2><span class="hint">${esc(T.rfHint)}</span>${concList('rf', CONC.redFlags, c.rf, true)}</section>
     <section class="card" style="margin-top:14px"><h2 class="sosk">${esc(T.rmHead.toUpperCase())}</h2>${concList('rm', CONC.remove, c.rm, false)}</section>
-    ${nrm ? `<div class="pqbox warn" style="margin-top:14px"><span>${esc(T.rmOn)}</span></div>` : ''}${!nrf && !nrm ? `<p class="empty" style="margin:14px 0 0">${esc(T.noneFound)}</p>` : ''}`;
-  if (UI.ctab === 1) {
-    const step = c.rts === '' ? -1 : Number(c.rts);
-    const opts = `<option value="" ${step < 0 ? 'selected' : ''}>${esc(T.stepNone)}</option>` + CONC.rts.map((r, i) => `<option value="${i}" ${i === step ? 'selected' : ''}>${i + 1}. ${esc(r[0][lang])}</option>`).join('');
-    const rows = (list, cur) => `<ol class="steps">${list.map((r, i) => `<li class="${i < cur ? 'done' : i === cur ? 'now' : ''}"><span class="stn">${i + 1}</span><span class="stx"><span class="stt">${esc(r[0][lang])}</span><span class="sts">${esc(r[1][lang])}</span></span></li>`).join('')}</ol>`;
-    return `<section class="card" style="margin-top:14px"><h2 class="sosk">${esc(T.rtsHead.toUpperCase())}</h2>
-      <label class="field"><span class="lbl" id="rtsLbl">${esc(T.curStep)}</span><select class="sel" id="rtsSel" aria-labelledby="rtsLbl">${opts}</select></label>${rows(CONC.rts, step)}</section>
-      <section class="card" style="margin-top:14px"><ul class="sosul">${T.rtsNotes.map(x => `<li>${esc(x)}</li>`).join('')}</ul></section>
-      <section class="card" style="margin-top:14px"><h2 class="sosk">${esc(T.rtlHead.toUpperCase())}</h2>${rows(CONC.rtl, -1)}</section>`;
+    <section class="card" style="margin-top:14px"><h2 class="sosk">${esc(T.osHead.toUpperCase())}</h2>${concList('os', CONC.signs, c.os, true)}
+      <label class="ckrow"><input type="checkbox" data-os="sy" ${c.os.sy ? 'checked' : ''}><span>${esc(T.syLbl)}</span></label></section>
+    ${dec}${dd}
+    <section class="card" style="margin-top:14px"><span class="hint">${esc(T.scatHint)}</span>
+      <a class="btn-sec" style="margin-top:10px" href="https://doi.org/10.1136/bjsports-2023-107036" target="_blank" rel="noopener">${svg('link', '#9A3412', 18)}<span>${esc(T.scatOpen)}</span></a>
+      <a class="btn-sec" style="margin-top:8px" href="https://doi.org/10.1136/bjsports-2023-106982" target="_blank" rel="noopener">${svg('link', '#9A3412', 18)}<span>${esc(T.cscatOpen)}</span></a></section>`;
   }
-  return sc6Out();
+  const rows = list => `<ol class="steps">${list.map((r, i) => `<li><span class="stn">${i + 1}</span><span class="stx"><span class="stt">${esc(r[0][lang])}</span><span class="sts">${esc(r[1][lang])}</span></span></li>`).join('')}</ol>`;
+  return `<section class="card" style="margin-top:14px"><h2 class="sosk">${esc(T.rtsHead.toUpperCase())}</h2>${rows(CONC.rts)}</section>
+    <section class="card" style="margin-top:14px"><h2 class="sosk">${esc(T.rulesHead.toUpperCase())}</h2><ul class="sosul">${T.rtsNotes.map(x => `<li>${esc(x)}</li>`).join('')}</ul></section>
+    <section class="card" style="margin-top:14px"><h2 class="sosk">${esc(T.rtlHead.toUpperCase())}</h2><span class="hint">${esc(T.rtlHint)}</span>${rows(CONC.rtl)}</section>`;
 }
 
-// ----- SCAT6 & Child SCAT6 digital (teks instrumen kata per kata, bahasa Inggris asli) -----
-const SC6P = { 0: ['info', 'imm', 'sym', 'cog', 'bal', 'dr', 'dec'], 1: ['info', 'imm', 'sym', 'par', 'cog', 'bal', 'dr', 'dec'] };
-const SC6_T = {
-  id: { parts: { info: 'Tentang', imm: 'Penilaian Segera', sym: 'Latar & Gejala', par: 'Laporan Orang Tua', cog: 'Kognitif', bal: 'Keseimbangan & Gait', dr: 'Ingatan Tertunda', dec: 'Keputusan & Skor' }, form: 'Formulir', forms: ['SCAT6 (≥13 tahun)', 'Child SCAT6 (8–12 tahun)'], verb: 'Teks instrumen ditampilkan kata per kata dalam bahasa Inggris asli; belum ada versi resmi berbahasa Indonesia.', noId: 'Isian identitas (nama, tanggal lahir, nomor ID, pemeriksa, tanda tangan, atestasi) dan isian teks bebas tidak disertakan karena SakuSKO tidak menyimpan identitas.', childSrc: 'Child SCAT6 resmi berupa PDF gambar; teksnya diambil dengan OCR lalu dicocokkan manual dengan gambar halaman.', part: 'Bagian', open: 'Buka PDF SCAT6 resmi (BJSM)', openC: 'Buka PDF Child SCAT6 resmi (BJSM)', perm: 'Reformat digital SCAT6/Child SCAT6 memerlukan izin tertulis BMJ; permohonan sedang diproses dr. Marcus.', of: 'dari', none: '—', redRef: 'Centang red flag di tab Di Lapangan.', trial: 'Trial', sec: 'detik', reset: 'Hapus isian formulir ini', fast: 'tercepat' },
-  en: { parts: { info: 'About', imm: 'Immediate Assessment', sym: 'Background & Symptoms', par: 'Parent Report', cog: 'Cognitive', bal: 'Balance & Gait', dr: 'Delayed Recall', dec: 'Decision & Scores' }, form: 'Form', forms: ['SCAT6 (≥13 years)', 'Child SCAT6 (8–12 years)'], verb: 'Instrument text is shown word for word in the original English; there is no official Indonesian version.', noId: 'Identity fields (name, date of birth, ID number, examiner, signature, attestation) and free-text fields are omitted because SakuSKO stores no identity.', childSrc: 'The official Child SCAT6 is an image-only PDF; its text was extracted by OCR and checked by hand against the page images.', part: 'Section', open: 'Open the official SCAT6 PDF (BJSM)', openC: 'Open the official Child SCAT6 PDF (BJSM)', perm: 'Digital reformatting of SCAT6/Child SCAT6 requires written consent from BMJ; Dr Marcus is requesting it.', of: 'of', none: '—', redRef: 'Tick red flags in the On Field tab.', trial: 'Trial', sec: 'sec', reset: 'Clear entries on this form', fast: 'fastest' },
-};
-const S6 = () => SC6_T[lang];
-const isC6 = () => S.sc6.form === 1;
-const A6 = () => (isC6() ? SCAT6C : SCAT6);
-const sc6v = () => (isC6() ? S.sc6.vc : S.sc6.v);
-const sc6Sc = () => (isC6() ? childScat6Scores(sc6v()) : scat6Scores(sc6v(), S.sc6.list));
-const scQ = t => `<p class="scq">${esc(t)}</p>`;
-const scSay = t => `<p class="scsay">${esc(t)}</p>`;
-const scH = t => `<h3 class="sch">${esc(t)}</h3>`;
-const scBtns = (key, opts, cls = '') => `<div class="scbtns${cls}">${opts.map(([val, lab]) => `<button type="button" class="scb" data-sc="${key}" data-val="${val}" aria-pressed="${String(key === 'list' || key === 'dlist' ? S.sc6[key] : sc6v()[key]) === String(val)}">${esc(lab)}</button>`).join('')}</div>`;
-const scYN = (key, label) => `<div class="scrow"><span class="sct">${esc(label)}</span>${scBtns(key, [['Y', 'Y'], ['N', 'N']])}</div>`;
-const sc01 = (key, label) => `<div class="scrow"><span class="sct">${esc(label)}</span>${scBtns(key, [[0, '0'], [1, '1']])}</div>`;
-const scNum = (key, label, unit = '') => `<label class="scrow"><span class="sct">${esc(label)}</span><span class="inbox scin"><input type="text" inputmode="decimal" autocomplete="off" data-scn="${key}" value="${esc(sc6v()[key] ?? '')}" aria-label="${esc(label)}">${unit ? `<span class="unit">${esc(unit)}</span>` : ''}</span></label>`;
-const scChk = (key, label) => `<label class="ckrow"><input type="checkbox" data-scc="${key}" ${Number(sc6v()[key]) === 1 ? 'checked' : ''}><span>${esc(label)}</span></label>`;
-const fmt2 = x => Number(x).toLocaleString(lang === 'id' ? 'id-ID' : 'en-GB', { maximumFractionDigits: 2 });
-const scScore = (label, val, max) => `<div class="scscore"><span>${esc(label)}</span><strong>${val === null || val === undefined ? S6().none : `${typeof val === 'number' && !Number.isInteger(val) ? fmt2(val) : val}${max ? ` ${S6().of} ${max}` : ''}`}</strong></div>`;
-const scSymRow = (key, label, max) => `<div class="scsym"><span class="sct">${esc(label)}</span>${scBtns(key, [...Array(max + 1).keys()].map(n => [n, String(n)]))}</div>`;
-const card6 = inner => `<section class="card sc6" style="margin-top:14px">${inner}</section>`;
-function sc6Part(p) {
-  const A = A6(), I = A.immediate, O = A.off, v = sc6v(), sc = sc6Sc(), L6 = S6(), C = isC6();
-  if (p === 'info') return card6(`${scH(A.title)}<p class="scsub">${esc(A.sub)} · ${esc(A.hcp)}</p>${A.what.map(scQ).join('')}
-    ${scH('Key Points')}<ul class="sosul">${A.keyPoints.map(x => `<li>${esc(x)}</li>`).join('')}</ul>${scH('Remember')}<ul class="sosul">${A.remember.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
-    ${scH('Recognise and Remove')}${scQ(A.recognise)}<div class="pqbox warn" style="margin-top:10px"><span>${esc(A.copyright)}</span></div>
-    ${scH(A.history.head)}${A.history.items.map(([k, l, , u]) => scNum(k, l, u || '')).join('')}`);
-  if (p === 'imm') return card6(`${scH(I.head)}${I.intro.map(scQ).join('')}
-    ${scH(I.signsHead)}${I.signsSrc.map((x, i) => scChk(`src${i}`, x)).join('')}${I.signs.map((x, i) => scYN(`sg${i}`, x)).join('')}
-    ${scH(I.redHead)}<ul class="sosul">${I.red.map(x => `<li>${esc(x)}</li>`).join('')}</ul><span class="hint">${esc(L6.redRef)}</span>
-    ${scH(I.gcsHead)}${scQ(I.gcsNote)}${I.gcs.map(([k, h, opts]) => `<p class="scq" style="font-weight:800">${esc(h)}</p>${opts.map((o, i) => `<div class="scrow"><span class="sct">${esc(o)}</span>${scBtns(`g${k}`, [[i + 1, String(i + 1)]])}</div>`).join('')}`).join('')}
-    ${scScore(I.gcsTotal, sc.gcs, 15)}
-    ${scH(I.cspineHead)}${scQ(I.cspineNote)}${I.cspine.map((x, i) => scYN(`cs${i}`, x)).join('')}
-    ${scH(I.coordHead)}${I.coord.map((x, i) => scYN(`co${i}`, x)).join('')}
-    ${C ? '' : `${scH(I.madHead)}${scSay(I.madSay)}${scQ(I.madIntro)}${I.mad.map((x, i) => sc01(`md${i}`, x)).join('')}${scScore(I.madScore, sc.mad, 5)}${scQ(I.madNote)}`}`);
-  if (p === 'sym') return card6(`${scH(O.head)}${scQ(O.intro)}
-    ${scH(O.bgHead)}${scQ(O.bgQ)}${O.bg.map((x, i) => scYN(`bg${i}`, x)).join('')}
-    ${scH(O.symHead)}${scBtns('mode', O.symMode.map((m, i) => [i, m]))}${scQ(O.symIntro)}${O.symSay.map(scSay).join('')}<p class="sccap">${esc(O.symHand)}</p>
-    ${C ? `<p class="sclegend">${O.scale.map((x, i) => `${i} = ${esc(x)}`).join(' · ')}</p>` : ''}
-    ${O.sym.map((x, i) => scSymRow(`sy${i}`, x, C ? 3 : 6)).join('')}
-    ${C ? `${O.symX.map((x, i) => scYN(`sx${i}`, x)).join('')}${scQ(O.rateHead)}<div class="scsym"><span class="sct">${esc(O.rateQ)}</span><p class="sclegend">0 = ${esc(O.rateLo)} · 10 = ${esc(O.rateHi)}</p>${scBtns('rate', [...Array(11).keys()].map(n => [n, String(n)]), ' wrap')}</div><p class="sccap">${esc(O.symBack)}</p>${scScore(`${O.symN} (of 21)`, sc.symN)}${scScore(`${O.symS} (of 63)`, sc.symS)}`
-      : `<p class="sccap">${esc(O.symBack)}</p>${O.symX.map((x, i) => scYN(`sx${i}`, x)).join('')}${scNum('pct', O.symPct, '%')}${scQ(O.symAfter)}${scScore(O.symN, sc.symN, 22)}${scScore(O.symS, sc.symS, 132)}`}`);
-  if (p === 'par') return card6(`${scH(O.parHead)}<p class="sccap">${esc(O.parHand)}</p><p class="sclegend">${O.scale.map((x, i) => `${i} = ${esc(x)}`).join(' · ')}</p><p class="scq" style="font-weight:800">${esc(O.parCol)}</p>
-    ${O.par.map((x, i) => scSymRow(`pa${i}`, x, 3)).join('')}${O.symX.map((x, i) => scYN(`px${i}`, x)).join('')}
-    ${scQ(O.parRateHead)}${scNum('ppct', O.parRateQ, '%')}<p class="sccap">${esc(O.symBack)}</p>${scScore(`${O.parN} (of 21)`, sc.parN)}${scScore(`${O.symS} (of 63)`, sc.parS)}`);
-  if (p === 'cog') {
-    const lst = O.lists[S.sc6.list], dl = O.digits[S.sc6.dlist];
-    return card6(`${scH(O.cogHead)}
-    ${C ? '' : `${scH(O.oriHead)}${O.ori.map((x, i) => sc01(`or${i}`, x)).join('')}${scScore(O.oriScore, sc.ori, 5)}`}
-    ${scH(O.imHead)}${scQ(O.imIntro)}${O.imSay.map(scSay).join('')}<div class="scrow"><span class="sct">${esc(O.listUsed)}</span>${scBtns('list', ['A', 'B', 'C'].map(x => [x, x]))}</div>
-    <div class="scgrid"><span></span>${[1, 2, 3].map(t => `<span class="scgh">${esc(L6.trial)} ${t}</span>`).join('')}${lst.map((w, i) => `<span class="scw">${esc(w)}</span>${[1, 2, 3].map(t => `<label class="scgc"><input type="checkbox" data-scc="im${t}_${i}" ${Number(v[`im${t}_${i}`]) === 1 ? 'checked' : ''} aria-label="${esc(`${w} ${L6.trial} ${t}`)}"></label>`).join('')}`).join('')}
-      <span class="scw">Trial Total</span>${sc.imTrial.map(x => `<span class="scgh">${x ?? L6.none}</span>`).join('')}</div>
-    ${scScore(O.imScore, sc.im, 30)}
-    ${scH(O.conHead)}${scQ(O.dbHead)}${scQ(O.dbIntro)}${scSay(O.dbSay)}<div class="scrow"><span class="sct">${esc(O.digitListUsed)}</span>${scBtns('dlist', ['A', 'B', 'C'].map(x => [x, x]))}</div>
-    ${dl.map((pair, l) => pair.map((str, j) => scYN(`dg${l}_${j}`, str)).join('')).join('')}${scScore(O.dbScore, sc.dig, C ? 5 : 4)}
-    ${scQ(O.moHead)}${scSay(O.moSay)}${scQ(O.moStart)}<p class="scq">${esc(O.months.join(' · '))}</p>${scNum('moT', O.moTime, L6.sec)}${scNum('moE', O.moErr)}${scQ(O.moRule)}
-    ${scScore(O.moScore, sc.mo, 1)}${scScore(O.conScore, sc.con, C ? 6 : 5)}`);
-  }
-  if (p === 'bal') return card6(`${scH(O.balHead)}${scQ(`${O.mbHead} ${O.mbSee}`)}
-    <div class="scrow"><span class="sct">${esc(`${O.mbFoot} ${O.mbFootNote}`)}</span>${scBtns('foot', O.mbFootOpt.map(x => [x, x]))}</div>${scQ(O.mbOpt)}
-    ${scQ(O.mbSub)}${O.stances.map((x, i) => scNum(`mb${i}`, `${x} (of 10)`)).join('')}${scScore(O.mbTotal, sc.mb, 30)}
-    ${scQ(O.mbFoam)}${O.stances.map((x, i) => scNum(`mf${i}`, `${x} (of 10)`)).join('')}${scScore(O.mbTotal, sc.mf, 30)}${O.mbNote.map(scQ).join('')}
-    ${scH(O.tgHead)}${scQ(O.tgIntro)}${scSay(O.tgSay)}${scQ(`${O.tgSingle} ${O.tgTime}`)}${[0, 1, 2].map(i => scNum(`tg${i}`, `Trial ${i + 1}`, L6.sec)).join('')}
-    ${scScore(O.tgAvg, sc.tgAvg)}${scScore(O.tgFast, sc.tgFast)}
-    ${C ? `${scH(O.ctHead)}<p class="scq" style="font-weight:800">${esc(O.ctFwd[0])}</p>${scSay(O.ctFwd[1])}${scQ(O.ctFwd[2])}${O.ctItems.slice(0, 2).map(([k, l]) => scNum(k, `${l} ${O.ctPts}`)).join('')}${scScore(O.ctFT, sc.ctF)}
-      <p class="scq" style="font-weight:800">${esc(O.ctBwd[0])}</p>${scSay(O.ctBwd[1])}${scQ(O.ctBwd[2])}${O.ctItems.slice(2).map(([k, l]) => scNum(k, `${l} ${O.ctPts}`)).join('')}${scScore(O.ctBT, sc.ctB)}${scScore(O.ctTot, sc.ct)}` : ''}
-    ${scH(O.dtHead)}${C ? scQ(O.dtOnly) : ''}${scQ(O.dtIntro)}${scSay(O.dtSay1)}${scQ(O.dtPractice)}<p class="scq">${O.dtPracticeSeq.join(' · ')}</p>${scSay(O.dtSay2)}${scQ(O.dtPerf)}
-    ${O.dtTrials.map((seq, i) => `<p class="scq" style="font-weight:800">Trial ${i + 1}: ${seq.join(' · ')}</p>${scNum(`dtE${i}`, 'Errors')}${scNum(`dtT${i}`, 'Time', L6.sec)}`).join('')}
-    ${scScore(`Dual Task ${L6.fast}`, sc.dtFast)}${scQ(O.dtAlt)}${scYN('dtNot', O.dtNotDone)}`);
-  if (p === 'dr') { const lst = O.lists[S.sc6.list];
-    return card6(`${scH(O.drHead)}${scQ(O.drIntro)}${scSay(O.drSay)}<p class="scq">${esc(O.listUsed)} ${S.sc6.list}</p>
-    ${lst.map((w, i) => scChk(`dr${i}`, w)).join('')}${scScore(O.drScore, sc.dr, 10)}`); }
-  if (C) return card6(`${scQ(O.usual)}${scBtns('usual', O.usualOpt.map(x => [x, x]))}
-    ${scH(O.decHead)}<div class="scrow"><span class="sct">${esc(O.neuro)}</span>${scBtns('neuro', O.neuroOpt.map(x => [x, x]))}</div>
-    ${scScore('Symptom number (of 21) — Child Report', sc.symN)}${scScore('Symptom number (of 21) — Parent Report', sc.parN)}${scScore('Symptom Severity (of 63) — Child Report', sc.symS)}${scScore('Symptom Severity (of 63) — Parent Report', sc.parS)}
-    ${scScore('Immediate Memory (of 30)', sc.im)}${scScore('Concentration (of 6)', sc.con)}${scScore('Delayed Recall (of 10)', sc.dr)}${scScore('Cognitive Total Score (of 46)', sc.cog)}
-    ${scScore('mBESS Total Errors (of 30)', sc.mb)}${scScore('Tandem Gait fastest time', sc.tgFast)}${scScore('Complex Tandem Gait Total Points', sc.ct)}${scScore('Dual Task fastest time', sc.dtFast)}
-    ${scH(O.dispHead)}${scQ(O.dx)}${scBtns('dx', O.dxOpt.map(x => [x, x]))}${scQ(O.improved)}${scBtns('impr', O.improvedOpt.map(x => [x, x]))}
-    <div class="pqbox warn" style="margin-top:10px"><span>${esc(O.final)}</span></div><button type="button" class="btn-sec" data-screset="1" style="margin-top:10px">${esc(L6.reset)}</button>`);
-  return card6(`${scH(O.totHead)}${scScore('Orientation:', sc.ori, 5)}${scScore('Immediate Memory:', sc.im, 30)}${scScore('Concentration:', sc.con, 5)}${scScore('Delayed Recall:', sc.dr, 10)}${scScore('Total:', sc.cog, 50)}
-    ${scQ(O.usual)}${scBtns('usual', O.usualOpt.map(x => [x, x]))}
-    ${scH(O.decHead)}<div class="scrow"><span class="sct">${esc(O.neuro)}</span>${scBtns('neuro', O.neuroOpt.map(x => [x, x]))}</div>
-    ${scScore('Symptom number (of 22)', sc.symN)}${scScore('Symptom Severity (of 132)', sc.symS)}${scScore('Cognitive Total Score (of 50)', sc.cog)}${scScore('mBESS Total Errors (of 30)', sc.mb)}${scScore('Tandem Gait fastest time', sc.tgFast)}${scScore('Dual Task fastest time', sc.dtFast)}
-    ${scQ(O.dx)}${scBtns('dx', O.dxOpt.map(x => [x, x]))}<div class="pqbox warn" style="margin-top:10px"><span>${esc(O.final)}</span></div>
-    <button type="button" class="btn-sec" data-screset="1" style="margin-top:10px">${esc(L6.reset)}</button>`);
-}
-function sc6Out() {
-  const L6 = S6(), form = S.sc6.form, P = SC6P[form];
-  if (!P.includes(S.sc6.part)) S.sc6.part = 'imm';
-  const forms = `<section class="card" style="margin-top:14px"><h2 class="sosk" id="scfLbl">${esc(L6.form.toUpperCase())}</h2><div class="catgrid" role="group" aria-labelledby="scfLbl">${L6.forms.map((f, i) => `<button type="button" class="catbtn" data-scform="${i}" aria-pressed="${form === i}">${esc(f)}</button>`).join('')}</div>
-    <span class="hint" style="margin-top:8px">${esc(L6.verb)}</span><span class="hint">${esc(L6.noId)}</span>${form === 1 ? `<span class="hint">${esc(L6.childSrc)}</span>` : ''}</section>`;
-  const parts = `<section class="card" style="margin-top:14px"><h2 class="sosk" id="scpLbl">${esc(L6.part.toUpperCase())}</h2><div class="catgrid" role="group" aria-labelledby="scpLbl">${P.map(p => `<button type="button" class="catbtn" data-scpart="${p}" aria-pressed="${S.sc6.part === p}">${esc(L6.parts[p])}</button>`).join('')}</div></section>`;
-  return `${forms}${parts}<div id="sc6part">${sc6Part(S.sc6.part)}</div>
-    <div class="pqbox warn" style="margin-top:14px"><span>${esc(L6.perm)}</span></div>
-    <a class="btn-sec" style="margin-top:10px" href="https://doi.org/${form === 1 ? '10.1136/bjsports-2023-106982' : '10.1136/bjsports-2023-107036'}" target="_blank" rel="noopener">${svg('link', '#9A3412', 18)}<span>${esc(form === 1 ? L6.openC : L6.open)}</span></a>`;
-}
-function sc6CopyLines() {
-  const out = [];
-  const add = (l, x, m) => { if (x !== null && x !== undefined) out.push(`${l}: ${typeof x === 'number' && !Number.isInteger(x) ? fmt2(x) : x}${m ? `/${m}` : ''}`); };
-  const block = (name, v, sc, C) => {
-    out.length = 0;
-    add('GCS', sc.gcs, 15);
-    if (C) { add('Symptoms (child)', sc.symN, 21); add('Severity (child)', sc.symS, 63); add('Symptoms (parent)', sc.parN, 21); add('Severity (parent)', sc.parS, 63); }
-    else { add('Maddocks', sc.mad, 5); add('Symptoms', sc.symN, 22); add('Symptom severity', sc.symS, 132); add('Orientation', sc.ori, 5); }
-    add('Immediate memory', sc.im, 30); add('Concentration', sc.con, C ? 6 : 5); add('Delayed recall', sc.dr, 10); add('Cognitive total', sc.cog, C ? 46 : 50);
-    add('mBESS errors', sc.mb, 30); add('mBESS foam errors', sc.mf, 30); add('Tandem gait fastest (s)', sc.tgFast); if (C) add('Complex tandem gait points', sc.ct); add('Dual task fastest (s)', sc.dtFast);
-    if (v.neuro) out.push(`${C ? 'Immediate assessment/neuro screen' : 'Neurological exam'}: ${v.neuro}`); if (v.dx) out.push(`Concussion diagnosed: ${v.dx}`);
-    return out.length ? [`${name} (${SCAT6.off.symMode[Number(v.mode ?? 1)] || ''})`, ...out.map(x => `  ${x}`)] : [];
-  };
-  return [...block('SCAT6', S.sc6.v, scat6Scores(S.sc6.v, S.sc6.list), false), ...block('Child SCAT6', S.sc6.vc, childScat6Scores(S.sc6.vc), true)];
-}
 function renderConc() {
   const T = TS(), sp = SOS[0];
   app.innerHTML = `${pageHeader(T.cardKicker, sp.name[lang], sp.sub[lang], true, '#/darurat')}<main class="main">
@@ -1640,7 +1538,6 @@ app.addEventListener('input', e => {
     query = el.value;
     renderHomeTiles(); return;
   }
-  if (el.dataset.scn) { const clean = el.value.replace(/[^\d.,]/g, '').slice(0, 6); if (clean !== el.value) el.value = clean; const k = el.dataset.scn; if (clean === '') delete sc6v()[k]; else sc6v()[k] = clean.replace(',', '.'); save(); UI.clearArmed = false; const c = concCopy(); UI.copy = c ? c.text : null; const box = document.getElementById('copyText'); if (box && c) box.textContent = c.text; if (!box && c) { const y = window.scrollY; renderConc(); window.scrollTo(0, y); const f = document.querySelector(`[data-scn="${k}"]`); if (f) { f.focus(); f.setSelectionRange(f.value.length, f.value.length); } return; } const sp = document.getElementById('sc6part'); if (sp) { const scores = sp.querySelectorAll('.scscore strong'); const tmp = document.createElement('div'); tmp.innerHTML = sc6Part(S.sc6.part); const fresh = tmp.querySelectorAll('.scscore strong'); scores.forEach((n, i) => { if (fresh[i]) n.textContent = fresh[i].textContent; }); } return; }
   if (el.dataset.pqtxt) {
     S.skr.pq.txt[el.dataset.pqtxt] = el.value.slice(0, 200); save(); UI.clearArmed = false;
     const c = skrCopy(); UI.copy = c ? c.text : null; const box = document.getElementById('copyText'); if (box && c) box.textContent = c.text; return;
@@ -1669,9 +1566,7 @@ app.addEventListener('change', e => {
     const mod = location.hash.match(/^#\/m\/(m2|m3)$/)?.[1]; if (!mod) return;
     S[mod].test = e.target.value; save(); renderMod(mod); document.getElementById('testSel')?.focus(); return;
   }
-  if (e.target.dataset.scc) { const k = e.target.dataset.scc; if (e.target.checked) sc6v()[k] = 1; else delete sc6v()[k]; save(); const y = window.scrollY; renderConc(); window.scrollTo(0, y); document.querySelector(`[data-scc="${k}"]`)?.focus(); return; }
-  if (e.target.dataset.rf !== undefined || e.target.dataset.rm !== undefined) { const isRf = e.target.dataset.rf !== undefined, i = isRf ? e.target.dataset.rf : e.target.dataset.rm, st = isRf ? S.sos.rf : S.sos.rm; if (e.target.checked) st[i] = true; else delete st[i]; save(); const y = window.scrollY; renderConc(); window.scrollTo(0, y); document.querySelector(`[data-${isRf ? 'rf' : 'rm'}="${i}"]`)?.focus(); return; }
-  if (e.target.id === 'rtsSel') { S.sos.rts = e.target.value; save(); const y = window.scrollY; renderConc(); window.scrollTo(0, y); document.getElementById('rtsSel')?.focus(); return; }
+  if (e.target.dataset.rf !== undefined || e.target.dataset.rm !== undefined || e.target.dataset.os !== undefined) { const kind = e.target.dataset.rf !== undefined ? 'rf' : e.target.dataset.rm !== undefined ? 'rm' : 'os', isRf = kind === 'rf', i = e.target.dataset[kind], st = S.sos[kind]; if (e.target.checked) st[i] = true; else delete st[i]; save(); const y = window.scrollY; renderConc(); window.scrollTo(0, y); document.querySelector(`[data-${kind}="${i}"]`)?.focus(); return; }
   if (e.target.id === 'm7Sel') { S.m7.sel = e.target.value; save(); refreshM79('m7', true); document.getElementById('m7Sel')?.focus(); return; }
   if (e.target.id === 'm9Sel') { S.m9.test = e.target.value; save(); refreshM79('m9'); document.getElementById('m9Sel')?.focus(); return; }
   if (e.target.id === 'eqSel') { S.m5.eq = e.target.value; save(); UI.ffmCopied = false; refreshM510('m5'); document.getElementById('eqSel')?.focus(); return; }
@@ -1702,11 +1597,7 @@ app.addEventListener('click', async e => {
   if (b.dataset.ny) { const k = b.dataset.ny, v = Number(b.dataset.v); if (S.m6.s[k] === v) delete S.m6.s[k]; else S.m6.s[k] = v; save(); UI.clearArmed = false; refreshM6(); document.querySelector(`[data-ny="${k}"][data-v="${v}"]`)?.focus(); return; }
   if (b.dataset.nyview) { S.m6.view = b.dataset.nyview; save(); renderM6(); document.querySelector(`[data-nyview="${b.dataset.nyview}"]`)?.focus(); return; }
   if (b.dataset.mfx && location.hash === '#/m/m6') { const k = b.dataset.mfx; UI.mfx.has(k) ? UI.mfx.delete(k) : UI.mfx.add(k); refreshM6(false); document.querySelector(`[data-mfx="${k}"]`)?.focus(); return; }
-  if (b.dataset.sc) { const k = b.dataset.sc, val = b.dataset.val; if (['list', 'dlist'].includes(k)) S.sc6[k] = val; else if (String(sc6v()[k]) === String(val)) delete sc6v()[k]; else sc6v()[k] = val; save(); const y = window.scrollY; renderConc(); window.scrollTo(0, y); document.querySelector(`[data-sc="${k}"][data-val="${val}"]`)?.focus(); return; }
-  if (b.dataset.scpart) { S.sc6.part = b.dataset.scpart; save(); renderConc(); document.querySelector(`[data-scpart="${S.sc6.part}"]`)?.focus(); return; }
-  if (b.dataset.scform !== undefined) { S.sc6.form = Number(b.dataset.scform); save(); const y = window.scrollY; renderConc(); window.scrollTo(0, y); return; }
-  if (b.dataset.screset) { if (isC6()) S.sc6.vc = {}; else S.sc6.v = {}; save(); const y = window.scrollY; renderConc(); window.scrollTo(0, y); return; }
-  if (b.dataset.hcat) { UI.hcat = b.dataset.hcat; const y = window.scrollY; renderSosCard('panas'); window.scrollTo(0, y); document.querySelector(`[data-hcat="${UI.hcat}"]`)?.focus(); return; }
+  if (b.dataset.hcat) { const k = location.hash.split('/')[2]; UI.hcat[k] = b.dataset.hcat; const y = window.scrollY; renderSosCard(k); window.scrollTo(0, y); document.querySelector(`[data-hcat="${b.dataset.hcat}"]`)?.focus(); return; }
   if (b.dataset.ctab !== undefined) { UI.ctab = Number(b.dataset.ctab); renderConc(); document.querySelector(`[data-ctab="${UI.ctab}"]`)?.focus(); return; }
   if (b.dataset.tmr) {
     const k = document.getElementById('tmrVal')?.dataset.k; if (!k) return; const R = tmrGet(k);
