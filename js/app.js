@@ -1272,6 +1272,7 @@ function refreshMod(mod, keepInputs = false) {
 const FIELD_STORE = { age: () => S.base, weight: () => S.base, height: () => S.base, hrRest: () => S.m1, hrMeas: () => S.m1 };
 function refreshCurrent(keepInputs = false) {
   const h = location.hash;
+  const hs = h.match(/^#\/darurat\/(\w+)$/); if (hs) { const sp = SOS.find(x => x.k === hs[1]); const box = document.getElementById('dosebox'); if (sp && sp.dose && box) { updateFieldMsgs(m1State()); const w = sosW(); box.innerHTML = sp.dose.map(d => { const v = d.t ? d.t[lang] : Number.isFinite(w) ? d.calc(w)[lang] : TS().needW; return d.t ? `<div class="dsrow"><span class="dsl">${esc(d.l[lang])}</span><span class="dst">${esc(v)}</span></div>` : kvRow(d.l[lang], v); }).join(''); } return; }
   if (h === '#/data') { if (keepInputs) updateFieldMsgs(m1State()); else document.getElementById('fields').innerHTML = baseFields(m1State()); }
   else if (/^#\/m\/m1$/.test(h)) refreshM1(keepInputs);
   else { const mm = h.match(/^#\/m\/(m2|m3)$/); if (mm) refreshMod(mm[1], keepInputs); const mc = h.match(/^#\/m\/(m4|m8)$/); if (mc) refreshCustom(mc[1], keepInputs); const md = h.match(/^#\/m\/(m5|m10)$/); if (md) refreshM510(md[1], keepInputs); const me = h.match(/^#\/m\/(m7|m9)$/); if (me) refreshM79(me[1], keepInputs); if (h === '#/m/m6') refreshM6(); }
@@ -1439,16 +1440,37 @@ function sosTimer(sp) {
     <div class="tmrbtns"><button type="button" class="tmrbtn" data-tmr="go">${esc(main)}</button><button type="button" class="tmrbtn ghost" data-tmr="reset">${esc(T.reset)}</button></div>
     ${log}</section>`;
 }
+UI.hcat = UI.hcat || 'ehs';
+const sosW = () => { const w = parse(S.base.weight); return S.base.weight !== '' && !m1State().allErr.weight && Number.isFinite(w) ? w : NaN; };
+function sosDose(sp) {
+  const T = TS(), w = sosW(), needW = sp.dose.some(d => d.calc);
+  const rows = sp.dose.map(d => { const v = d.t ? d.t[lang] : Number.isFinite(w) ? d.calc(w)[lang] : T.needW; return d.t ? `<div class="dsrow"><span class="dsl">${esc(d.l[lang])}</span><span class="dst">${esc(v)}</span></div>` : kvRow(d.l[lang], v); }).join('');
+  return `<section class="card sossec dose" style="margin-top:14px"><h2 class="sosk">${esc(T.doseHead.toUpperCase())}</h2>
+    ${needW ? `<div id="fields">${field('weight', t().weight, 'kg', S.base.weight, { req: false, err: UI.touched.has('weight') ? m1State().allErr.weight : '', dec: true })}</div>` : ''}
+    <div id="dosebox">${rows}</div><div class="pqbox warn" style="margin-top:10px"><span>${esc(T.doseWarn)}</span></div></section>`;
+}
+function sosSev(sp) {
+  const T = TS();
+  return `<section class="card" style="margin-top:14px"><h2 class="sosk">${esc(T.sevHead.toUpperCase())}</h2>${sp.sev.map(g => `<div class="pqbox ${g.k === 'ok' ? 'ok' : g.k === 'warn' ? 'warn' : 'danger'}" style="margin-top:8px"><strong>${esc(g.t[lang])}</strong><ul class="sosul" style="margin-top:6px">${g.items.map(x => `<li>${esc(x[lang])}</li>`).join('')}</ul></div>`).join('')}
+    ${sp.sevNote ? `<span class="hint" style="margin-top:8px">${esc(sp.sevNote[lang])}</span>` : ''}</section>`;
+}
 function renderSosCard(k) {
   const sp = SOS.find(x => x.k === k); if (!sp) { renderSos(); return; }
   if (sp.special) { renderConc(); return; }
   const T = TS();
+  let body = '';
+  if (sp.cats) {
+    if (!sp.cats.some(c => c.k === UI.hcat)) UI.hcat = sp.cats[sp.cats.length - 1].k;
+    const c = sp.cats.find(x => x.k === UI.hcat);
+    body = `<section class="card sossec" style="margin-top:14px"><h2 class="sosk">${esc(T.pembedaHead.toUpperCase())}</h2><ul class="sosul">${sp.pembeda.map(x => `<li>${esc(x[lang])}</li>`).join('')}</ul></section>
+      <section class="card" style="margin-top:14px"><h2 class="sosk" id="hcatLbl">${esc(T.catLbl.toUpperCase())}</h2><div class="catgrid" role="group" aria-labelledby="hcatLbl">${sp.cats.map(x => `<button type="button" class="catbtn" data-hcat="${x.k}" aria-pressed="${x.k === c.k}">${esc(x.name[lang])}</button>`).join('')}</div></section>
+      ${sosSec('red', `${T.kenali} · ${c.name[lang]}`, c.kenali)}${sosSec('red', T.lakukan, c.lakukan, true)}${c.timer ? sosTimer({ k: sp.k, timer: c.timer }) : ''}${sosSec('', T.jangan, sp.jangan)}${sosSec('', T.lanjut, c.lanjut)}`;
+  } else {
+    body = `${sosSec('red', T.kenali, sp.kenali)}${sp.sev ? sosSev(sp) : ''}${sosSec('red', T.lakukan, sp.lakukan, true)}${sp.timer ? sosTimer(sp) : ''}${sp.dose ? sosDose(sp) : ''}${sosSec('', T.jangan, sp.jangan)}${sosSec('', T.lanjut, sp.lanjut)}`;
+  }
+  if (sp.cats && sp.dose) body += sosDose(sp);
   app.innerHTML = `${pageHeader(T.cardKicker, sp.name[lang], sp.sub[lang], true, '#/darurat')}<main class="main">
-    ${sosSec('red', T.kenali, sp.kenali)}
-    ${sosSec('red', T.lakukan, sp.lakukan, true)}
-    ${sp.timer ? sosTimer(sp) : ''}
-    ${sosSec('', T.jangan, sp.jangan)}
-    ${sosSec('', T.lanjut, sp.lanjut)}
+    ${body}
     ${sp.note ? `<div class="pqbox warn" style="margin-top:14px"><span>${esc(sp.note[lang])}</span></div>` : ''}
     <section class="card" style="margin-top:14px">${fxBtn(`sos-${sp.k}`, true)}${UI.mfx.has(`sos-${sp.k}`) ? srcBox(`sos-${sp.k}`, SOS_REF, sp.refs) : ''}</section>
     <div class="foot"><span>${esc(T.sosWarn)}</span><span>${esc(t().meta2)}</span></div>
@@ -1564,6 +1586,7 @@ app.addEventListener('click', async e => {
   if (b.dataset.ny) { const k = b.dataset.ny, v = Number(b.dataset.v); if (S.m6.s[k] === v) delete S.m6.s[k]; else S.m6.s[k] = v; save(); UI.clearArmed = false; refreshM6(); document.querySelector(`[data-ny="${k}"][data-v="${v}"]`)?.focus(); return; }
   if (b.dataset.nyview) { S.m6.view = b.dataset.nyview; save(); renderM6(); document.querySelector(`[data-nyview="${b.dataset.nyview}"]`)?.focus(); return; }
   if (b.dataset.mfx && location.hash === '#/m/m6') { const k = b.dataset.mfx; UI.mfx.has(k) ? UI.mfx.delete(k) : UI.mfx.add(k); refreshM6(false); document.querySelector(`[data-mfx="${k}"]`)?.focus(); return; }
+  if (b.dataset.hcat) { UI.hcat = b.dataset.hcat; const y = window.scrollY; renderSosCard('panas'); window.scrollTo(0, y); document.querySelector(`[data-hcat="${UI.hcat}"]`)?.focus(); return; }
   if (b.dataset.ctab !== undefined) { UI.ctab = Number(b.dataset.ctab); renderConc(); document.querySelector(`[data-ctab="${UI.ctab}"]`)?.focus(); return; }
   if (b.dataset.tmr) {
     const k = document.getElementById('tmrVal')?.dataset.k; if (!k) return; const R = tmrGet(k);

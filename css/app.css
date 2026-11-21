@@ -241,3 +241,10 @@ main { overflow-wrap: break-word; }
 .stt { font-size: 14px; font-weight: 800; color: var(--ink); }
 .sts { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
 .pqbox.danger { border-color: var(--danger); background: var(--danger-bg); color: #7F1D1D; font-weight: 700; }
+.catgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.catbtn { min-height: 52px; border-radius: 14px; border: 1.5px solid var(--line); background: #fff; color: var(--ink); font-size: 13.5px; font-weight: 800; padding: 8px 10px; line-height: 1.25; cursor: pointer; }
+.catbtn[aria-pressed="true"] { background: var(--danger); border-color: var(--danger); color: #fff; }
+.sossec.dose { border: 1.5px solid #1C1206; }
+.dsrow { display: flex; flex-direction: column; gap: 3px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.dsl { font-size: 13px; font-weight: 800; color: var(--label); }
+.dst { font-size: 14px; font-weight: 600; line-height: 1.45; color: var(--ink); }

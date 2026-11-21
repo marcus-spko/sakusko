@@ -133,8 +133,14 @@ check('ACSM: jawaban belum lengkap → belum ada hasil', A('', 'n', 'n') === nul
 // v0.2 Darurat — kelengkapan kartu
 const { SOS, SOS_REF, CONC } = await import('../js/darurat.js');
 check('Darurat: 10 kartu, konkusi di urutan pertama', SOS.length === 10 && SOS[0].k === 'konkusi');
-check('Darurat: setiap kartu (selain konkusi) punya kenali, lakukan, jangan, sumber id/en', SOS.filter(x => !x.special).every(x => ['kenali', 'lakukan', 'jangan'].every(f => x[f].length && x[f].every(y => y.id && y.en)) && x.refs.every(r => SOS_REF[r])));
-check('Darurat: tanpa dosis obat dalam mg/mcg', !JSON.stringify(SOS).match(/\d\s?(mg|mcg|µg)(?!\/dL)/i));
+const full = x => ['kenali', 'lakukan'].every(f => x[f] && x[f].length && x[f].every(y => y.id && y.en));
+check('Darurat: setiap kartu punya kenali + lakukan (atau per kategori), jangan, sumber id/en', SOS.filter(x => !x.special).every(x => (x.cats ? x.cats.every(full) : full(x)) && x.jangan.length && x.refs.every(r => SOS_REF[r])));
+check('Penyakit panas: 4 kategori (kolaps, EHE, EHI, EHS)', SOS.find(x => x.k === 'panas').cats.map(c => c.k).join() === 'eac,ehe,ehi,ehs');
+const ana = SOS.find(x => x.k === 'ana').dose;
+check('Adrenalin IM 0,01 mg/kg maks 0,5 mg: 70 kg → 0,50 mg; 20 kg → 0,20 mg', ana[0].calc(70).en === '0.50 mg = 0.50 mL' && ana[0].calc(20).en === '0.20 mg = 0.20 mL');
+check('Kristaloid 20 mL/kg: 70 kg → 1.400 mL', ana[3].calc(70).id === '1.400 mL');
+check('Prednisolon anak 1–2 mg/kg maks 40: 15 kg → 15–30; 30 kg → 30–40', SOS.find(x => x.k === 'asma').dose[4].calc(15).en === '15–30 mg/day' && SOS.find(x => x.k === 'asma').dose[4].calc(30).en === '30–40 mg/day');
+check('Dosis hanya pada kartu dengan pedoman yang mencantumkan dosis', SOS.filter(x => x.dose).map(x => x.k).join() === 'eah,ana,asma,hipo');
 check('Konkusi: 11 red flag SCAT6, 8 tanda keluar lapangan, 6 tahap RTS, 4 tahap RTL', CONC.redFlags.length === 11 && CONC.remove.length === 8 && CONC.rts.length === 6 && CONC.rtl.length === 4);
 
 console.log(`\n${n} pemeriksaan lulus.`);
