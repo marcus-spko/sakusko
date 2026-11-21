@@ -195,3 +195,175 @@ export function scat6Scores(v, list = 'A') {
   const dtFast = dt.length ? Math.min(...dt) : null;
   return { gcs, mad, symN, symS, ori, im, imTrial: [1, 2, 3].map(imTrial), dig, mo, con, dr, cog, mb, mf, tgAvg, tgFast, dtFast, list };
 }
+
+// Child SCAT6 (8–12 tahun) — teks kata per kata dari PDF resmi BJSM 2023;57(11):636-45 (Davis GA, dkk.).
+// PDF berupa gambar; teks diambil dengan OCR 300 dpi lalu dicocokkan visual baris per baris dengan gambar halaman.
+// Isian identitas, tanda tangan, catatan teks bebas, dan atestasi HCP sengaja tidak disertakan.
+const SAME = SCAT6.immediate;
+export const SCAT6C = {
+  title: 'Child Sport Concussion Assessment Tool 6 - Child SCAT6',
+  sub: 'For Children Ages 8 to 12 Years',
+  hcp: 'For use by Health Care Professionals Only',
+  what: [
+    'The Child SCAT6 is a standardised tool for evaluating concussions in children ages 8-12 years, and designed for use by Health Care Professionals (HCP). The Child SCAT6 cannot be performed correctly in less than 10-15 minutes. The Child SCAT6 is intended to be used in the acute phase, ideally within 72 hours (3 days), and up to 7 days, following injury. If greater than 7 days post-injury consider using the Child Sport Concussion Office Assessment Tool 6 (Child SCOAT6).',
+    'The Child SCAT6 is used for evaluating children aged 8-12 years. For athletes aged 13 years or older, please use the SCAT6.',
+    'If you are not an HCP, please use the Concussion Recognition Tool 6 (CRT6).',
+    'Detailed instructions for use of the Child SCAT6 are provided as a supplement. Please read through these instructions carefully before using the Child SCAT6. Brief verbal instructions for each test are given in blue italics. The only equipment required for the examiner is athletic tape and a watch or timer.',
+  ],
+  copyright: SCAT6.copyright,
+  recognise: 'A head impact by either a direct blow or indirect transmission of force to the head can be associated with serious and potentially fatal consequences. If there are significant concerns, including any of the RED FLAGS listed in Box 1 indicating signs that require urgent medical attention, and if a qualified medical practitioner is not present for immediate sideline assessment, then activation of emergency procedures and urgent transport to the nearest hospital should be arranged.',
+  keyPoints: [
+    'Any child with suspected concussion should be IMMEDIATELY REMOVED FROM PLAY, medically assessed, and monitored for injury-related signs, including deterioration of clinical condition.',
+    'No child with a suspected concussion should be returned to play on the day of injury.',
+    'If a child is suspected of having a concussion, and medical personnel are not immediately available, the child should be referred (or transported if needed) to a medical facility for assessment.',
+    'Children with suspected or diagnosed concussion should not be given medications such as aspirin, anti-inflammatories, sedatives or opiates.',
+    'Concussion signs and symptoms may evolve over time and it is important to monitor the child for ongoing, worsening, or development of concussion-related symptoms.',
+    'The Child SCAT6 should not be used in isolation in making post-acute return to play decisions.',
+    'The diagnosis of a concussion is a clinical determination made by a HCP. The Child SCAT6 should NOT be used by itself to make, or exclude, the diagnosis of concussion. It is important to note that a child may have a concussion even if their Child SCAT6 assessment is within normal limits.',
+  ],
+  remember: [
+    'The basic principles of first aid should be followed: assess danger at the scene, child responsiveness, airway, breathing, and circulation.',
+    'Do not attempt to move an unconscious/unresponsive child (other than that required for airway management) unless trained to do so.',
+    'Assessment for a spinal and/or spinal cord injury is a critical part of the initial on-field assessment. Do not attempt to assess the spine unless trained to do so.',
+    'Do not remove a helmet or any other equipment unless trained to do so safely.',
+  ],
+  history: {
+    head: 'Concussion History',
+    items: [['hxN', 'How many diagnosed concussions has the child had in the past?:', 'num'], ['hxDays', 'How long was the recovery (time to being cleared to play) from the most recent concussion?:', 'num', '(Days)']],
+  },
+  immediate: {
+    head: SAME.head,
+    intro: [
+      'The following elements should be used in the evaluation of all children who are suspected of having a concussion prior to proceeding to the cognitive assessment, and ideally should be completed “on-field” after the first aid/emergency care priorities are completed.',
+      'If any of the observable signs of concussion are noted after a direct or indirect blow to the head, the child should be immediately and safely removed from participation and evaluated by a HCP.',
+      'Consideration of transportation to a medical facility should be at the discretion of the physician or HCP.',
+      'The Glasgow Coma Scale is important as a standard measure for all patients and can be repeated over time to monitor deterioration of consciousness. The cervical spine examination is also a critical step in the immediate assessment.',
+    ],
+    signsHead: SAME.signsHead, signsSrc: SAME.signsSrc, signs: SAME.signs,
+    redHead: SAME.redHead, red: SAME.red,
+    gcsHead: SAME.gcsHead, gcsNote: SAME.gcsNote, gcs: SAME.gcs, gcsTotal: SAME.gcsTotal,
+    cspineHead: SAME.cspineHead,
+    cspineNote: 'In a child who is not lucid or fully conscious, a cervical spine injury should be assumed and spinal precautions taken.',
+    cspine: ['Does the child report neck pain at rest?', 'Is there tenderness to palpation?', 'If NO neck pain and NO tenderness, does the athlete have a full range of ACTIVE pain free movement?', 'Are limb strength and sensation normal?'],
+    coordHead: 'Step 4: Coordination & Oculomotor Screen',
+    coord: SAME.coord,
+  },
+  off: {
+    head: 'Off-Field Assessment',
+    intro: 'Please note that the cognitive assessment should be done in a distraction-free environment with the child in a resting state after completion of the Immediate Assessment/Neuro Screen.',
+    bgHead: 'Step 1: Child Background', bgQ: 'Has the child ever been:', bg: SCAT6.off.bg,
+    symHead: 'Step 2: Symptom Evaluation - Child Report',
+    symMode: SCAT6.off.symMode,
+    symIntro: 'The child will complete the symptom scale (below) after you provide instructions. Please note that the instructions are different for baseline versus suspected/post-injury evaluations.',
+    symSay: ['Baseline: Say “Please rate your symptoms below based on how you typically feel with “1” representing the symptom is a little and “3” representing the symptom is a lot.”', 'Suspected/Post-injury: Say “Please rate your symptoms below based on how you feel now with “1” representing the symptom is a little and “3” representing the symptom is a lot.”'],
+    symHand: 'PLEASE HAND THE FORM TO THE CHILD',
+    symBack: 'PLEASE HAND THE FORM BACK TO THE EXAMINER',
+    scale: ['Not at all/never', 'A little/rarely', 'Somewhat/sometimes', 'A lot/often'],
+    symCol: 'Symptom',
+    sym: ['I have headaches', 'I feel dizzy', 'I feel like the room is spinning', 'I feel like I’m going to faint', 'Things are blurry when I look at them', 'I see double', 'I feel sick to my stomach', 'I get tired a lot', 'I get tired easily', 'I have trouble paying attention', 'I get distracted easily', 'I have a hard time concentrating', 'I have problems remembering what people tell me', 'I have problems following directions', 'I daydream too much', 'I get confused', 'I forget things', 'I have problems finishing things', 'I have trouble figuring things out', 'It’s hard for me to learn new things', 'My neck hurts'],
+    symX: ['Do the symptoms get worse with physical activity?', 'Do the symptoms get worse with trying to think?'],
+    rateHead: 'Overall rating for child to answer:',
+    rateQ: 'On a scale of 0 to 10 (where 10 is normal), how do you feel now?', rateLo: 'Very Bad', rateHi: 'Very Good',
+    symN: 'Child Report: Total number of symptoms:', symS: 'Symptom severity score:',
+    parHead: 'Step 2: Symptom Evaluation - Parent Report',
+    parHand: 'PLEASE HAND THE FORM TO THE PARENT/GUARDIAN/CARER',
+    parCol: 'The Child...',
+    par: ['has headaches', 'feels dizzy', 'has a feeling that the room is spinning', 'feels faint', 'has blurred vision', 'has double vision', 'experiences nausea', 'gets tired a lot', 'gets tired easily', 'has trouble sustaining attention', 'is distracted easily', 'has difficulty concentrating', 'has problems remembering what he/she is told', 'has difficulty following directions', 'tends to daydream', 'gets confused', 'is forgetful', 'has difficulty completing tasks', 'has poor problem-solving skills', 'has problems learning', 'has a sore neck'],
+    parRateHead: 'Overall rating for parent/teacher/coach/carer to answer:',
+    parRateQ: 'On a scale of 0 to 100% (where 100% is normal), how would you rate the child now?',
+    parN: 'Parent Report: Total number of symptoms:',
+    cogHead: SCAT6.off.cogHead,
+    imHead: 'Immediate Memory',
+    imIntro: 'All 3 trials must be administered irrespective of the number correct on Trial 1. Administer at the rate of one word per second in a monotone voice.',
+    imSay: SCAT6.off.imSay,
+    lists: {
+      A: ['Finger', 'Penny', 'Blanket', 'Lemon', 'Insect', 'Candle', 'Paper', 'Sugar', 'Sandwich', 'Wagon'],
+      B: ['Baby', 'Monkey', 'Perfume', 'Sunset', 'Iron', 'Elbow', 'Apple', 'Carpet', 'Saddle', 'Bubble'],
+      C: ['Jacket', 'Arrow', 'Pepper', 'Cotton', 'Movie', 'Dollar', 'Honey', 'Mirror', 'Saddle', 'Anchor'],
+    },
+    listUsed: 'Word list used:', imScore: 'Immediate Memory Score',
+    conHead: 'Concentration', dbHead: 'Digits Backward:',
+    dbIntro: 'Administer at the rate of one digit per second in a monotone voice reading DOWN the selected column.',
+    dbSay: SCAT6.off.dbSay,
+    digits: {
+      A: [['5-2', '4-1'], ['4-9-3', '6-2-9'], ['3-8-1-4', '3-2-7-9'], ['6-2-9-7-1', '1-5-2-8-6'], ['7-1-8-4-6-2', '5-3-9-1-4-8']],
+      B: [['4-1', '9-4'], ['5-2-6', '4-1-5'], ['1-7-9-5', '4-9-6-8'], ['4-8-5-2-7', '6-1-8-4-3'], ['8-3-1-9-6-4', '7-2-4-8-5-6']],
+      C: [['4-9', '6-2'], ['1-4-2', '6-5-8'], ['6-8-3-1', '3-4-8-1'], ['4-9-1-5-3', '6-8-2-5-1'], ['3-7-6-5-1-9', '9-2-6-5-1-4']],
+    },
+    digitListUsed: 'Digit list used:', dbScore: 'Digits Score',
+    moHead: 'Days in Reverse Order:',
+    moSay: 'Say “Now tell me the days of the week in reverse order as QUICKLY and as accurately as possible. Start with the last day and go backward. So, you’ll say Sunday, Saturday... go ahead”',
+    moStart: 'Start stopwatch and CIRCLE each correct response:',
+    months: ['Sunday', 'Saturday', 'Friday', 'Thursday', 'Wednesday', 'Tuesday', 'Monday'],
+    moTime: 'Time Taken to Complete (secs):', moErr: 'Number of Errors:',
+    moRule: '1 point if no errors and completion under 30 seconds',
+    moScore: 'Days Score:', conScore: 'Concentration Score (Digits + Days)',
+    balHead: SCAT6.off.balHead, mbHead: SCAT6.off.mbHead, mbSee: SCAT6.off.mbSee,
+    mbFoot: SCAT6.off.mbFoot, mbFootOpt: SCAT6.off.mbFootOpt, mbFootNote: SCAT6.off.mbFootNote,
+    mbOpt: SCAT6.off.mbOpt, mbSub: SCAT6.off.mbSub, mbFoam: SCAT6.off.mbFoam, stances: SCAT6.off.stances, mbTotal: SCAT6.off.mbTotal,
+    mbNote: ['Note: If the mBESS yields negative or questionable findings then proceed to the Tandem Gait/Complex/Dual-Task Tandem Gait. If the mBESS reveals clinically significant difficulties, Tandem Gait is not necessary at this time. The Tandem Gait, Complex Tandem Gait and optional Dual-Task component may be administered later in the office setting as needed.'],
+    tgHead: 'Timed Tandem Gait',
+    tgIntro: 'Place a 3-metre-long line on the floor/firm surface with athletic tape. The task should be timed.',
+    tgSay: SCAT6.off.tgSay, tgSingle: 'Single Task:', tgTime: SCAT6.off.tgTime, tgAvg: SCAT6.off.tgAvg, tgFast: SCAT6.off.tgFast,
+    ctHead: 'Complex Tandem Gait',
+    ctFwd: ['Forward', 'Say “Please walk heel-to-toe quickly five steps forward, then continue forward with eyes closed for five steps”', '1 point for each step off the line, 1 point for truncal sway.'],
+    ctBwd: ['Backward', 'Say “Please walk heel-to-toe again, backwards five steps eyes open, then continue backwards five steps with eyes closed.”', '1 point for each step off the line, 1 point for truncal sway.'],
+    ctItems: [['ctFO', 'Forward Eyes Open'], ['ctFC', 'Forward Eyes Closed'], ['ctBO', 'Backward Eyes Open'], ['ctBC', 'Backward Eyes Closed']],
+    ctPts: 'Points:', ctFT: 'Forward Total Points:', ctBT: 'Backward Total Points:', ctTot: 'Total Points (Forward + Backward):',
+    dtHead: 'Dual Task Gait (Optional)',
+    dtOnly: 'Only perform if the child successfully completes complex tandem gait.',
+    dtIntro: SCAT6.off.dtIntro,
+    dtSay1: 'Say “Now, while you are walking heel-to-toe, I will ask you to count backwards out loud by 3s. For example, if we started at 100, you would say 100, 97, 94, 91. Let’s practise counting. Starting with 95, count backward by threes until I say “stop”.” Note that this practice only involves counting backwards.',
+    dtPractice: SCAT6.off.dtPractice,
+    dtPracticeSeq: [95, 92, 89, 86, 83, 80, 77, 74],
+    dtSay2: SCAT6.off.dtSay2, dtPerf: SCAT6.off.dtPerf,
+    dtTrials: [[88, 85, 82, 79, 76, 73, 70, 67], [76, 73, 70, 67, 64, 61, 58, 55], [93, 90, 87, 84, 81, 78, 75, 72]],
+    dtAlt: SCAT6.off.dtAlt, dtNotDone: SCAT6.off.dtNotDone,
+    drHead: SCAT6.off.drHead, drIntro: SCAT6.off.drIntro, drSay: SCAT6.off.drSay, drScore: SCAT6.off.drScore,
+    usual: SCAT6.off.usual, usualOpt: SCAT6.off.usualOpt,
+    decHead: 'Step 6: Decision',
+    neuro: 'Immediate Assessent/Neuro Screen', neuroOpt: ['Normal', 'Abnormal'],
+    dispHead: 'Disposition',
+    dx: 'Concussion diagnosed?', dxOpt: ['Yes', 'No', 'Deferred'],
+    improved: 'If re-testing, has the child improved?', improvedOpt: ['Yes', 'No'],
+    final: 'Note: Scoring on the Child SCAT6 should not be used as a stand-alone method to diagnose concussion, measure recovery, or make decisions about a child’s readiness to return to sport after concussion. Remember, a child can score within normal limits on the Child SCAT6 and still have a concussion. Wherever possible, the results of the Child SCAT6 should accompany the child to any later reassessments by an HCP.',
+  },
+};
+
+// Skor Child SCAT6 — gejala 21 butir skala 0–3 (anak & orang tua), digits 5 tingkat, hari mundur, kompleks tandem gait
+export function childScat6Scores(v) {
+  const n = k => (v[k] === undefined || v[k] === '' ? null : Number(v[k]));
+  const sum = keys => keys.reduce((a, k) => a + (n(k) || 0), 0);
+  const filled = keys => keys.some(k => n(k) !== null);
+  const gcsK = ['gE', 'gV', 'gM'];
+  const gcs = gcsK.every(k => n(k) !== null) ? sum(gcsK) : null;
+  const rep = p => { const K = [...Array(21).keys()].map(i => `${p}${i}`); return filled(K) ? [K.filter(k => (n(k) || 0) > 0).length, sum(K)] : [null, null]; };
+  const [symN, symS] = rep('sy'), [parN, parS] = rep('pa');
+  const imK = t => [...Array(10).keys()].map(i => `im${t}_${i}`);
+  const imAll = [...imK(1), ...imK(2), ...imK(3)];
+  const im = filled(imAll) ? sum(imAll) : null;
+  const imTrial = t => (filled(imK(t)) ? sum(imK(t)) : null);
+  let dig = null;
+  if ([0, 1, 2, 3, 4].some(l => v[`dg${l}_0`] || v[`dg${l}_1`])) {
+    dig = 0;
+    for (let l = 0; l < 5; l++) { if (v[`dg${l}_0`] === 'Y' || v[`dg${l}_1`] === 'Y') dig++; else break; }
+  }
+  const moT = n('moT'), moE = n('moE');
+  const mo = moT !== null && moE !== null ? (moE === 0 && moT < 30 ? 1 : 0) : null;
+  const con = dig !== null && mo !== null ? dig + mo : null;
+  const drK = [...Array(10).keys()].map(i => `dr${i}`);
+  const dr = filled(drK) ? sum(drK) : null;
+  const cog = [im, con, dr].every(x => x !== null) ? im + con + dr : null;
+  const mbK = [0, 1, 2].map(i => `mb${i}`), mfK = [0, 1, 2].map(i => `mf${i}`);
+  const mb = mbK.every(k => n(k) !== null) ? sum(mbK) : null;
+  const mf = mfK.every(k => n(k) !== null) ? sum(mfK) : null;
+  const tg = [0, 1, 2].map(i => n(`tg${i}`)).filter(x => x !== null && x > 0);
+  const tgAvg = tg.length === 3 ? (tg[0] + tg[1] + tg[2]) / 3 : null;
+  const tgFast = tg.length ? Math.min(...tg) : null;
+  const ctF = n('ctFO') !== null && n('ctFC') !== null ? n('ctFO') + n('ctFC') : null;
+  const ctB = n('ctBO') !== null && n('ctBC') !== null ? n('ctBO') + n('ctBC') : null;
+  const ct = ctF !== null && ctB !== null ? ctF + ctB : null;
+  const dt = [0, 1, 2].map(i => n(`dtT${i}`)).filter(x => x !== null && x > 0);
+  const dtFast = dt.length ? Math.min(...dt) : null;
+  return { gcs, symN, symS, parN, parS, im, imTrial: [1, 2, 3].map(imTrial), dig, mo, con, dr, cog, mb, mf, tgAvg, tgFast, ctF, ctB, ct, dtFast };
+}

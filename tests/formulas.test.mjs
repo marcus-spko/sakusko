@@ -157,4 +157,17 @@ check('SCAT6: mBESS 7; tandem tercepat 11,9; rerata 12,37', ss.mb === 7 && ss.tg
 check('SCAT6: bulan ≥30 dtk atau ada salah = 0', scat6Scores({ moT: '30', moE: '0' }).mo === 0 && scat6Scores({ moT: '20', moE: '1' }).mo === 0);
 check('SCAT6: 22 gejala, 3 daftar kata × 10, digits 3 daftar × 4 tingkat × 2 string', SCAT6.off.sym.length === 22 && ['A', 'B', 'C'].every(k => SCAT6.off.lists[k].length === 10 && SCAT6.off.digits[k].length === 4 && SCAT6.off.digits[k].every(p => p.length === 2)));
 
+// Child SCAT6 — skor
+const { childScat6Scores, SCAT6C } = await import('../js/scat6.js');
+const cv = { gE: '4', gV: '5', gM: '6', sy0: '2', sy20: '3', pa1: '1', dg0_0: 'Y', dg1_0: 'N', dg1_1: 'Y', dg2_0: 'Y', dg3_0: 'N', dg3_1: 'N', dg4_0: 'Y', moT: '18', moE: '0', ctFO: '1', ctFC: '2', ctBO: '0', ctBC: '3' };
+for (let t = 1; t <= 3; t++) for (let i = 0; i < 6; i++) cv[`im${t}_${i}`] = 1;
+for (let i = 0; i < 5; i++) cv[`dr${i}`] = 1;
+const cs = childScat6Scores(cv);
+check('Child SCAT6: gejala anak 2/21 keparahan 5/63; orang tua 1/21 keparahan 1', cs.symN === 2 && cs.symS === 5 && cs.parN === 1 && cs.parS === 1);
+check('Child SCAT6: digits 5 tingkat, berhenti di tingkat 4 yang gagal dua kali (3)', cs.dig === 3);
+check('Child SCAT6: hari mundur 18 dtk tanpa salah = 1; konsentrasi 4 (dari 6)', cs.mo === 1 && cs.con === 4);
+check('Child SCAT6: memori 18 + konsentrasi 4 + tertunda 5 = kognitif 27 (dari 46, tanpa orientasi)', cs.im === 18 && cs.dr === 5 && cs.cog === 27);
+check('Child SCAT6: complex tandem gait maju 3 + mundur 3 = 6', cs.ctF === 3 && cs.ctB === 3 && cs.ct === 6);
+check('Child SCAT6: 21 gejala anak & 21 orang tua, 5 tingkat digits, 7 hari, latihan hitung mundur 3', SCAT6C.off.sym.length === 21 && SCAT6C.off.par.length === 21 && ['A', 'B', 'C'].every(k => SCAT6C.off.digits[k].length === 5) && SCAT6C.off.months.length === 7 && SCAT6C.off.dtPracticeSeq.every((x, i, a) => i === 0 || a[i - 1] - x === 3) && SCAT6C.off.dtTrials.every(t => t.every((x, i, a) => i === 0 || a[i - 1] - x === 3)));
+
 console.log(`\n${n} pemeriksaan lulus.`);

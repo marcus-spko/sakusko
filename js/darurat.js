@@ -18,11 +18,12 @@ export const SOS_REF = {
   walsh13: { ref: 'Walsh KM, Cooper MA, Holle R, Rakov VA, Roeder WP, Ryan M. National Athletic Trainers\' Association position statement: lightning safety for athletics and recreation. J Athl Train. 2013;48(2):258-70.', doi: '10.4085/1062-6050-48.2.25' },
   patricios23: { ref: 'Patricios JS, Schneider KJ, Dvorak J, Ahmed OH, Blauwet C, Cantu RC, et al. Consensus statement on concussion in sport: the 6th International Conference on Concussion in Sport-Amsterdam, October 2022. Br J Sports Med. 2023;57(11):695-711.', doi: '10.1136/bjsports-2023-106898' },
   scat6: { ref: 'Echemendia RJ, Brett BL, Broglio S, Davis GA, Giza CC, Guskiewicz KM, et al. Sport concussion assessment tool - 6 (SCAT6). Br J Sports Med. 2023;57(11):622-31.', doi: '10.1136/bjsports-2023-107036' },
+  cscat6: { ref: 'Davis GA, Echemendia RJ, Ahmed OH, Anderson V, Blauwet C, Brett BL, et al. Child SCAT6. Br J Sports Med. 2023;57(11):636-47.', doi: '10.1136/bjsports-2023-106982' },
 };
 
 // Daftar kartu. Urutan: konkusi di atas (paling sering), lalu kondisi yang mengancam nyawa.
 export const SOS = [
-  { k: 'konkusi', icon: 'brain', special: true, name: L('Cedera Kepala & Konkusi', 'Head Injury & Concussion'), sub: L('Red flag, keluarkan dari lapangan, tahapan kembali', 'Red flags, removal, return stages'), refs: ['scat6', 'patricios23'] },
+  { k: 'konkusi', icon: 'brain', special: true, name: L('Cedera Kepala & Konkusi', 'Head Injury & Concussion'), sub: L('Red flag, keluarkan dari lapangan, tahapan kembali', 'Red flags, removal, return stages'), refs: ['scat6', 'cscat6', 'patricios23'] },
   { k: 'rjp', icon: 'heart', timer: 'cpr', name: L('Henti Jantung & AED', 'Cardiac Arrest & AED'), sub: L('RJP berkualitas, AED secepatnya', 'High-quality CPR, early AED'), refs: ['aha25'],
     kenali: [L('Tidak responsif dan tidak bernapas normal atau hanya gasping: anggap henti jantung.', 'Unresponsive with absent or abnormal breathing (gasping only): assume cardiac arrest.'),
       L('Tenaga kesehatan meraba nadi tidak lebih dari 10 detik; nadi tidak pasti teraba berarti henti jantung.', 'Health professionals check the pulse for no more than 10 seconds; no definite pulse means cardiac arrest.'),
@@ -269,7 +270,7 @@ export const SOS_T = {
     scatHead: 'SCAT6 digital', scatBody: 'Versi digital SCAT6 dan Child SCAT6 sedang disiapkan dari PDF resmi (kata per kata). SCAT6 untuk usia ≥13 tahun, Child SCAT6 untuk 8–12 tahun; dipakai idealnya dalam 72 jam pertama.',
     scatOpen: 'Buka SCAT6 resmi (BJSM)', scatPerm: 'Reformat digital SCAT6 memerlukan izin tertulis BMJ; permohonan sedang diproses dr. Marcus.',
     doseHead: 'Dosis (untuk dokter)', doseWarn: 'Periksa ulang sediaan, konsentrasi, dan berat badan sebelum memberi obat. Ketersediaan sediaan di Indonesia belum diverifikasi.', needW: 'Isi BB', sevHead: 'Derajat keparahan (GINA 2026)', pembedaHead: 'Pembeda utama', catLbl: 'Kategori',
-    concCopyHead: 'Konkusi', copyRf: 'Red flag', copyRm: 'Tanda keluar lapangan', copyStep: 'Tahap kembali berolahraga', copySrc: 'SCAT6 2023; Konsensus Amsterdam 2022',
+    concCopyHead: 'Konkusi', copyRf: 'Red flag', copyRm: 'Tanda keluar lapangan', copyStep: 'Tahap kembali berolahraga', copySrc: 'SCAT6 & Child SCAT6 2023; Konsensus Amsterdam 2022',
     sources: 'Sumber kartu: AHA 2025; ACSM 2023; IOC 2023 panas; WMS 2019 dan konsensus EAH 2015; NATA 2012, 2013, 2020; WAO 2020; ASCIA 2024; GINA 2026; ADA 2026; SCAT6 dan Konsensus Amsterdam 2022.',
   },
   en: {
@@ -290,7 +291,7 @@ export const SOS_T = {
     scatHead: 'Digital SCAT6', scatBody: 'The digital SCAT6 and Child SCAT6 are being prepared from the official PDF (word for word). SCAT6 is for ages ≥13, Child SCAT6 for 8–12; ideally used within the first 72 hours.',
     scatOpen: 'Open the official SCAT6 (BJSM)', scatPerm: 'Digital reformatting of SCAT6 requires written consent from BMJ; Dr Marcus is requesting it.',
     doseHead: 'Doses (for doctors)', doseWarn: 'Double-check the product, concentration and body mass before giving any drug. Availability in Indonesia has not been verified.', needW: 'Enter BM', sevHead: 'Severity (GINA 2026)', pembedaHead: 'Key discriminators', catLbl: 'Category',
-    concCopyHead: 'Concussion', copyRf: 'Red flags', copyRm: 'Removal signs', copyStep: 'Return-to-sport stage', copySrc: 'SCAT6 2023; Amsterdam consensus 2022',
+    concCopyHead: 'Concussion', copyRf: 'Red flags', copyRm: 'Removal signs', copyStep: 'Return-to-sport stage', copySrc: 'SCAT6 & Child SCAT6 2023; Amsterdam consensus 2022',
     sources: 'Card sources: AHA 2025; ACSM 2023; IOC 2023 heat; WMS 2019 and EAH consensus 2015; NATA 2012, 2013, 2020; WAO 2020; ASCIA 2024; GINA 2026; ADA 2026; SCAT6 and Amsterdam consensus 2022.',
   },
 };

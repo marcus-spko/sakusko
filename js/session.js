@@ -15,9 +15,9 @@ const blank = () => ({
   m10: { v: {} },
   m6: { view: 'back', s: {} },
   m9: { v: {}, test: 'single' },
-  m7: { sel: 'cre', picked: [] },
-  sos: { rf: {}, rm: {}, rts: '' },
-  sc6: { v: {}, part: 'imm', list: 'A', dlist: 'A', form: 0 },        // SCAT6 digital: jawaban dan skor mentah, tanpa identitas                     // konkusi: red flag, tanda keluar lapangan, tahap kembali                      // picked: kunci suplemen yang masuk Ringkasan
+  m7: { sel: 'cre', picked: [] }, // picked: kunci suplemen yang masuk Ringkasan
+  sos: { rf: {}, rm: {}, rts: '' }, // konkusi: red flag, tanda keluar lapangan, tahap kembali
+  sc6: { v: {}, vc: {}, part: 'imm', list: 'A', dlist: 'A', form: 0 }, // SCAT6/Child SCAT6 digital: jawaban dan skor mentah, tanpa identitas
   skr: { part: 'acsm', active: '', known: '', symp: '', intent: '', cleared: '', aha: {}, pqLang: '', pq: { g: {}, q1: {}, txt: {}, f: {} } },
   updatedAt: 0,
 });
@@ -33,7 +33,7 @@ function assign(src) {
   S.m4 = { ...b.m4, ...(src.m4 || {}), v: { ...((src.m4 || {}).v || {}) } };
   S.m5 = { ...b.m5, ...(src.m5 || {}), v: { ...((src.m5 || {}).v || {}) } };
   S.m6 = { ...b.m6, ...(src.m6 || {}), s: { ...((src.m6 || {}).s || {}) } };
-  S.sc6 = { ...b.sc6, ...(src.sc6 || {}), v: { ...((src.sc6 || {}).v || {}) } };
+  S.sc6 = { ...b.sc6, ...(src.sc6 || {}), v: { ...((src.sc6 || {}).v || {}) }, vc: { ...((src.sc6 || {}).vc || {}) } };
   S.sos = { ...b.sos, ...(src.sos || {}), rf: { ...((src.sos || {}).rf || {}) }, rm: { ...((src.sos || {}).rm || {}) } };
   S.m7 = { ...b.m7, ...(src.m7 || {}), picked: [...((src.m7 || {}).picked || [])] };
   S.m9 = { ...b.m9, ...(src.m9 || {}), v: { ...((src.m9 || {}).v || {}) } };
@@ -47,7 +47,7 @@ function assign(src) {
 
 export function isEmpty() {
   const noVals = o => Object.values(o.v).every(v => v === '');
-  return Object.values(S.base).every(v => v === '') && S.m1.hrRest === '' && S.m1.hrMeas === '' && noVals(S.m2) && noVals(S.m3) && noVals(S.m4) && noVals(S.m8) && noVals(S.m5) && noVals(S.m10) && noVals(S.m9) && Object.keys(S.m6.s).length === 0 && !S.m4.cho && S.m7.picked.length === 0 && Object.keys(S.sos.rf).length === 0 && Object.keys(S.sos.rm).length === 0 && S.sos.rts === '' && Object.keys(S.sc6.v).length === 0
+  return Object.values(S.base).every(v => v === '') && S.m1.hrRest === '' && S.m1.hrMeas === '' && noVals(S.m2) && noVals(S.m3) && noVals(S.m4) && noVals(S.m8) && noVals(S.m5) && noVals(S.m10) && noVals(S.m9) && Object.keys(S.m6.s).length === 0 && !S.m4.cho && S.m7.picked.length === 0 && Object.keys(S.sos.rf).length === 0 && Object.keys(S.sos.rm).length === 0 && S.sos.rts === '' && Object.keys(S.sc6.v).length === 0 && Object.keys(S.sc6.vc).length === 0
     && ['active', 'known', 'symp', 'intent', 'cleared'].every(k => S.skr[k] === '') && Object.keys(S.skr.aha).length === 0
     && ['g', 'f'].every(k => Object.values(S.skr.pq[k]).every(v => !v)) && Object.values(S.skr.pq.q1).every(v => !v) && Object.values(S.skr.pq.txt).every(v => !v);
 }

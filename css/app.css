@@ -273,3 +273,6 @@ main { overflow-wrap: break-word; }
 .scw { font-size: 14px; font-weight: 700; color: var(--ink); padding: 6px 0; }
 .scgc { display: flex; justify-content: center; min-height: 40px; align-items: center; }
 .scgc input { width: 22px; height: 22px; accent-color: var(--header-ink); }
+.sclegend { margin: 4px 0; font-size: 12px; font-weight: 700; line-height: 1.45; color: var(--muted); overflow-wrap: anywhere; }
+.scsym .scbtns.wrap { flex-wrap: wrap; }
+.scsym .scbtns.wrap .scb { flex: 0 0 calc((100% - 20px) / 6); }
