@@ -143,4 +143,18 @@ check('Prednisolon anak 1–2 mg/kg maks 40: 15 kg → 15–30; 30 kg → 30–4
 check('Dosis hanya pada kartu dengan pedoman yang mencantumkan dosis', SOS.filter(x => x.dose).map(x => x.k).join() === 'eah,ana,asma,hipo');
 check('Konkusi: 11 red flag SCAT6, 8 tanda keluar lapangan, 6 tahap RTS, 4 tahap RTL', CONC.redFlags.length === 11 && CONC.remove.length === 8 && CONC.rts.length === 6 && CONC.rtl.length === 4);
 
+// SCAT6 — skor
+const { scat6Scores, SCAT6 } = await import('../js/scat6.js');
+const sv = { gE: '4', gV: '5', gM: '6', md0: '1', md1: '1', sy0: '3', sy4: '2', sy9: '1', or0: 1, or1: 1, or2: 1, or3: 1, or4: 1, dg0_0: 'Y', dg1_0: 'N', dg1_1: 'Y', dg2_0: 'N', dg2_1: 'N', dg3_0: 'Y', moT: '25', moE: '0', mb0: '0', mb1: '2', mb2: '5', tg0: '12.4', tg1: '11.9', tg2: '12.8' };
+for (let t = 1; t <= 3; t++) for (let i = 0; i < t + 4; i++) sv[`im${t}_${i}`] = 1;
+for (let i = 0; i < 6; i++) sv[`dr${i}`] = 1;
+const ss = scat6Scores(sv);
+check('SCAT6: GCS 15, Maddocks 2, gejala 3 / keparahan 6', ss.gcs === 15 && ss.mad === 2 && ss.symN === 3 && ss.symS === 6);
+check('SCAT6: digits berhenti di tingkat pertama yang gagal dua kali (2, bukan 3)', ss.dig === 2);
+check('SCAT6: bulan 25 dtk tanpa salah = 1; konsentrasi 3', ss.mo === 1 && ss.con === 3);
+check('SCAT6: memori segera 18/30, tertunda 6, total kognitif 32/50', ss.im === 18 && ss.dr === 6 && ss.cog === 32);
+check('SCAT6: mBESS 7; tandem tercepat 11,9; rerata 12,37', ss.mb === 7 && ss.tgFast === 11.9 && Math.abs(ss.tgAvg - 12.3667) < 0.001);
+check('SCAT6: bulan ≥30 dtk atau ada salah = 0', scat6Scores({ moT: '30', moE: '0' }).mo === 0 && scat6Scores({ moT: '20', moE: '1' }).mo === 0);
+check('SCAT6: 22 gejala, 3 daftar kata × 10, digits 3 daftar × 4 tingkat × 2 string', SCAT6.off.sym.length === 22 && ['A', 'B', 'C'].every(k => SCAT6.off.lists[k].length === 10 && SCAT6.off.digits[k].length === 4 && SCAT6.off.digits[k].every(p => p.length === 2)));
+
 console.log(`\n${n} pemeriksaan lulus.`);
