@@ -132,24 +132,30 @@ check('ACSM: jawaban belum lengkap → belum ada hasil', A('', 'n', 'n') === nul
 
 // v0.2 Darurat — kelengkapan kartu
 const { SOS, SOS_REF, CONC, SOS_T } = await import('../js/darurat.js');
-check('Darurat: 12 kartu, konkusi di urutan pertama', SOS.length === 12 && SOS[0].k === 'konkusi');
+check('Darurat: 13 kartu, konkusi di urutan pertama', SOS.length === 13 && SOS[0].k === 'konkusi');
 const full = x => ['kenali', 'lakukan'].every(f => x[f] && x[f].length && x[f].every(y => y.id && y.en));
-check('Darurat: setiap kartu punya kenali + lakukan (atau per kategori), jangan, sumber id/en', SOS.filter(x => !x.special).every(x => (x.cats ? x.cats.every(full) : full(x)) && x.jangan.length && x.refs.every(r => SOS_REF[r])));
+check('Darurat: setiap kartu punya kenali + lakukan (atau per kategori), jangan, sumber id/en', SOS.filter(x => !x.special).every(x => (x.cats ? x.cats.every(full) : full(x)) && (x.cats ? x.cats.every(c => (c.jangan || x.jangan).length) : x.jangan.length) && x.refs.every(r => SOS_REF[r])));
 check('Penyakit panas: 4 kategori (kolaps, EHE, EHI, EHS)', SOS.find(x => x.k === 'panas').cats.map(c => c.k).join() === 'eac,ehe,ehi,ehs');
 const ana = SOS.find(x => x.k === 'ana').dose;
 check('Adrenalin IM 0,01 mg/kg maks 0,5 mg: 70 kg → 0,50 mg; 20 kg → 0,20 mg', ana[0].calc(70).en === '0.50 mg = 0.50 mL' && ana[0].calc(20).en === '0.20 mg = 0.20 mL');
 check('Kristaloid 20 mL/kg: 70 kg → 1.400 mL', ana[3].calc(70).id === '1.400 mL');
 check('Prednisolon anak 1–2 mg/kg maks 40: 15 kg → 15–30; 30 kg → 30–40', SOS.find(x => x.k === 'asma').dose[4].calc(15).en === '15–30 mg/day' && SOS.find(x => x.k === 'asma').dose[4].calc(30).en === '30–40 mg/day');
-check('Dosis hanya pada kartu dengan pedoman yang mencantumkan dosis', SOS.filter(x => x.dose).map(x => x.k).join() === 'eah,trauma,ana,asma,hipo');
+check('Dosis hanya pada kartu dengan pedoman yang mencantumkan dosis', SOS.filter(x => x.dose).map(x => x.k).join() === 'rjp,kejang,eah,trauma,ana,asma,hipo');
 check('Konkusi: 11 red flag SCAT6, 8 tanda keluar lapangan, 6 tahap RTS, 4 tahap RTL', CONC.redFlags.length === 11 && CONC.remove.length === 8 && CONC.rts.length === 6 && CONC.rtl.length === 4);
 
 // Darurat v0.2 revisi 21 Nov: kartu sel sabit dihapus, 3 kartu baru, konkusi tanpa SCAT6 digital
-check('Darurat: urutan kartu', SOS.map(x => x.k).join(',') === 'konkusi,rjp,tenggelam,panas,eah,spine,trauma,ana,asma,hipo,kram,petir');
+check('Darurat: urutan kartu', SOS.map(x => x.k).join(',') === 'konkusi,rjp,kejang,tenggelam,panas,eah,spine,trauma,ana,asma,hipo,kram,petir');
 check('Darurat: kartu sel sabit dan rujukan Casa 2012 tidak ada lagi', !SOS.some(x => x.k === 'sct') && !SOS_REF.casa12);
 const tr = SOS.find(x => x.k === 'trauma');
 check('Cefazolin fraktur terbuka: 70 kg → 2 g; 30 kg → 1 g', tr.dose[0].calc(70).id === '2 g' && tr.dose[0].calc(30).id.startsWith('1 g'));
 check('Trauma: 3 kategori perdarahan, fraktur, dislokasi', tr.cats.map(c => c.k).join(',') === 'bld,fx,dsl');
 check('Konkusi: 8 tanda terlihat SCAT6, 2 tab', CONC.signs.length === 8 && SOS_T.id.cTabs.length === 2 && SOS_T.en.cTabs.length === 2);
+const kj = SOS.find(x => x.k === 'kejang'), rj = SOS.find(x => x.k === 'rjp');
+check('Kejang: 3 kategori (benturan, kolaps, epilepsi)', kj.cats.map(c => c.k).join(',') === 'imp,col,epi');
+check('AES 2016: midazolam IM 10 mg (>40 kg), 5 mg (13–40 kg); <13 kg tidak tercantum', kj.dose[0].calc(41).id === '10 mg' && kj.dose[0].calc(40).id === '5 mg' && kj.dose[0].calc(13).id === '5 mg' && kj.dose[0].calc(12).id.startsWith('BB'));
+check('AES 2016: lorazepam 0,1 mg/kg maks 4 mg; diazepam IV 0,15–0,2 mg/kg maks 10 mg', kj.dose[1].calc(30).id === '3,0 mg' && kj.dose[1].calc(70).id === '4,0 mg' && kj.dose[2].calc(30).id === '4,5–6,0 mg' && kj.dose[2].calc(70).id === '10,0 mg');
+check('AHA 2025 PALS: epinefrin 0,01 mg/kg maks 1 mg; amiodaron 5 mg/kg maks 300 mg', rj.dose[3].calc(20).id.startsWith('0,20 mg') && rj.dose[3].calc(120).id.startsWith('1,00 mg') && rj.dose[4].calc(20).id === '100 mg' && rj.dose[4].calc(80).id === '300 mg');
+check('Tenggelam: tabel derajat WMS 2024 3 kelompok', SOS.find(x => x.k === 'tenggelam').sev.length === 3);
 check('Semua rujukan kartu ada di SOS_REF', SOS.every(x => (x.refs || []).every(r => SOS_REF[r])));
 
 console.log(`\n${n} pemeriksaan lulus.`);

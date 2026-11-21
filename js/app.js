@@ -1451,7 +1451,7 @@ function sosDose(sp) {
 }
 function sosSev(sp) {
   const T = TS();
-  return `<section class="card" style="margin-top:14px"><h2 class="sosk">${esc(T.sevHead.toUpperCase())}</h2>${sp.sev.map(g => `<div class="pqbox ${g.k === 'ok' ? 'ok' : g.k === 'warn' ? 'warn' : 'danger'}" style="margin-top:8px"><strong>${esc(g.t[lang])}</strong><ul class="sosul" style="margin-top:6px">${g.items.map(x => `<li>${esc(x[lang])}</li>`).join('')}</ul></div>`).join('')}
+  return `<section class="card" style="margin-top:14px"><h2 class="sosk">${esc((sp.sevLbl ? sp.sevLbl[lang] : T.sevHead).toUpperCase())}</h2>${sp.sev.map(g => `<div class="pqbox ${g.k === 'ok' ? 'ok' : g.k === 'warn' ? 'warn' : 'danger'}" style="margin-top:8px"><strong>${esc(g.t[lang])}</strong><ul class="sosul" style="margin-top:6px">${g.items.map(x => `<li>${esc(x[lang])}</li>`).join('')}</ul></div>`).join('')}
     ${sp.sevNote ? `<span class="hint" style="margin-top:8px">${esc(sp.sevNote[lang])}</span>` : ''}</section>`;
 }
 function renderSosCard(k) {
@@ -1464,7 +1464,7 @@ function renderSosCard(k) {
     const c = sp.cats.find(x => x.k === UI.hcat[sp.k]);
     body = `<section class="card sossec" style="margin-top:14px"><h2 class="sosk">${esc((sp.pembedaLbl ? sp.pembedaLbl[lang] : T.pembedaHead).toUpperCase())}</h2><ul class="sosul">${sp.pembeda.map(x => `<li>${esc(x[lang])}</li>`).join('')}</ul></section>
       <section class="card" style="margin-top:14px"><h2 class="sosk" id="hcatLbl">${esc(T.catLbl.toUpperCase())}</h2><div class="catgrid" role="group" aria-labelledby="hcatLbl">${sp.cats.map(x => `<button type="button" class="catbtn" data-hcat="${x.k}" aria-pressed="${x.k === c.k}">${esc(x.name[lang])}</button>`).join('')}</div></section>
-      ${sosSec('red', `${T.kenali} · ${c.name[lang]}`, c.kenali)}${sosSec('red', T.lakukan, c.lakukan, true)}${c.timer ? sosTimer({ k: sp.k, timer: c.timer }) : ''}${sosSec('', T.jangan, sp.jangan)}${sosSec('', T.lanjut, c.lanjut)}`;
+      ${sosSec('red', `${T.kenali} · ${c.name[lang]}`, c.kenali)}${sosSec('red', T.lakukan, c.lakukan, true)}${c.timer ? sosTimer({ k: sp.k, timer: c.timer }) : ''}${sosSec('', T.jangan, c.jangan || sp.jangan)}${sosSec('', T.lanjut, c.lanjut)}`;
   } else {
     body = `${sosSec('red', T.kenali, sp.kenali)}${sp.sev ? sosSev(sp) : ''}${sosSec('red', T.lakukan, sp.lakukan, true)}${sp.timer ? sosTimer(sp) : ''}${sp.dose ? sosDose(sp) : ''}${sosSec('', T.jangan, sp.jangan)}${sosSec('', T.lanjut, sp.lanjut)}`;
   }
