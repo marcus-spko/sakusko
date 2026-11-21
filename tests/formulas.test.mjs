@@ -130,4 +130,11 @@ check('ACSM 5: intensitas berat dengan clearance ≤12 bln → boleh', A('y', 'y
 check('ACSM 6: rutin, ada gejala → hentikan latihan (merah)', A('y', '', 'y').cell === 6 && A('y', '', 'y').level === 'stop');
 check('ACSM: jawaban belum lengkap → belum ada hasil', A('', 'n', 'n') === null && A('y', 'y', 'n') === null && A('y', 'y', 'n', 'vig') === null);
 
+// v0.2 Darurat — kelengkapan kartu
+const { SOS, SOS_REF, CONC } = await import('../js/darurat.js');
+check('Darurat: 10 kartu, konkusi di urutan pertama', SOS.length === 10 && SOS[0].k === 'konkusi');
+check('Darurat: setiap kartu (selain konkusi) punya kenali, lakukan, jangan, sumber id/en', SOS.filter(x => !x.special).every(x => ['kenali', 'lakukan', 'jangan'].every(f => x[f].length && x[f].every(y => y.id && y.en)) && x.refs.every(r => SOS_REF[r])));
+check('Darurat: tanpa dosis obat dalam mg/mcg', !JSON.stringify(SOS).match(/\d\s?(mg|mcg|µg)(?!\/dL)/i));
+check('Konkusi: 11 red flag SCAT6, 8 tanda keluar lapangan, 6 tahap RTS, 4 tahap RTL', CONC.redFlags.length === 11 && CONC.remove.length === 8 && CONC.rts.length === 6 && CONC.rtl.length === 4);
+
 console.log(`\n${n} pemeriksaan lulus.`);

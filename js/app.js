@@ -9,6 +9,7 @@ import { M48_REF, M4_FIELDS, M8_FIELDS, M48_T } from './m48.js';
 import { M510_REF, SITES, EQS, EQ_ORDER, SOMATO_SITES, M10_FIELDS, M510_T, GUIDE, GUIDE_GENERAL, GUIDE_SRC, SOMATO_CAT } from './m510.js';
 import { NYPR, nyprSvg, NYPR_REF } from './nypr.js';
 import { M79_REF, SUPPS, M7_SAFE, LSI_ROWS, HQ_FIELDS, M79_T } from './m79.js';
+import { SOS, SOS_REF, SOS_T, CONC } from './darurat.js';
 import { MODULES, T, M1_FORMULAS, KARVONEN_REF, GLOSSARY, ABOUT } from './i18n.js';
 import { S, load, save, clear, expireIfDue, expiresAt, isEmpty } from './session.js';
 import { startTitleCase } from './titlecase.js';
@@ -43,6 +44,13 @@ const ICONS = {
   link: '<path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/>',
   list: '<path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/>',
   plus: '<path d="M12 5v14"/><path d="M5 12h14"/>',
+  brain: '<path d="M9.5 3A2.5 2.5 0 0 0 7 5.5v.3A3 3 0 0 0 4.5 9a3 3 0 0 0 .5 5.2A3 3 0 0 0 9 19.5h.5V3Z"/><path d="M14.5 3A2.5 2.5 0 0 1 17 5.5v.3A3 3 0 0 1 19.5 9a3 3 0 0 1-.5 5.2 3 3 0 0 1-4 5.3h-.5V3Z"/>',
+  flame: '<path d="M12 22c4 0 7-3 7-7 0-3-2-5-3-7-1 2-2 3-3 3 0-3-1-6-4-9 0 4-4 7-4 13 0 4 3 7 7 7Z"/>',
+  bolt: '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/>',
+  phone: '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2Z"/>',
+  timer: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M9 2h6"/>',
+  chevr: '<path d="m9 18 6-6-6-6"/>',
+  pulse: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
 };
 const svg = (name, color = 'currentColor', size = 20, sw = 2) =>
   `<svg aria-hidden="true" focusable="false" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
@@ -77,16 +85,16 @@ function chip() {
   return `<span class="chip ${offline === 'ready' ? '' : 'wait'}" id="offChip" role="status"><span class="dot"></span>${esc(txt)}</span>`;
 }
 function nav(active) {
-  const items = [['#/', 'grid', t().navCalc, 'calc'], ['#/ringkasan', 'list', t().navSum, 'sum'], ['#/glosarium', 'book', t().navGloss, 'gloss'], ['#/tentang', 'info', t().navAbout, 'about']];
+  const items = [['#/', 'grid', t().navCalc, 'calc'], ['#/ringkasan', 'list', t().navSum, 'sum'], ['#/darurat', 'alert', TS().sosTitle, 'sos'], ['#/glosarium', 'book', t().navGloss, 'gloss'], ['#/tentang', 'info', t().navAbout, 'about']];
   return `<nav class="nav" aria-label="Navigasi utama"><div class="nav-in">${items.map(([h, ic, l, k]) =>
-    `<a href="${h}" ${active === k ? 'aria-current="page"' : ''}>${svg(ic)}<span>${esc(l)}</span></a>`).join('')}</div></nav>`;
+    `<a href="${h}" ${k === 'sos' ? 'class="sos" ' : ''}${active === k ? 'aria-current="page"' : ''}>${svg(ic)}<span>${esc(l)}</span></a>`).join('')}</div></nav>`;
 }
 function brandHeader() {
   return `<header class="hdr"><div class="hdr-row"><div class="brand"><span class="logo">${svg('heart', '#FF8A3D', 22, 2.2)}</span>
     <div><div class="brand-name">SakuSKO</div><div class="brand-tag">${esc(t().tagline)}</div></div></div>${langToggle()}</div>${chip()}</header>`;
 }
-function pageHeader(kicker, title, sub) {
-  return `<header class="hdr"><div class="hdr-row"><a class="back" href="#/" aria-label="${esc(t().back)}">${svg('back', '#1C1206', 22, 2.4)}</a>${langToggle()}</div>
+function pageHeader(kicker, title, sub, danger = false, backHref = '#/') {
+  return `<header class="hdr${danger ? ' danger' : ''}"><div class="hdr-row"><a class="back" href="${backHref}" aria-label="${esc(t().back)}">${svg('back', '#1C1206', 22, 2.4)}</a>${langToggle()}</div>
     <div>${kicker ? `<div class="kicker">${esc(kicker)}</div>` : ''}<h1 class="h1">${esc(title)}</h1>${sub ? `<div class="sub">${esc(sub)}</div>` : ''}</div></header>`;
 }
 const ibtn = (key, label) => `<button type="button" class="ibtn" data-def="${key}" aria-label="${esc(t().defTitle)}: ${esc(label)}">${svg('info', '#9A3412', 18)}</button>`;
@@ -1322,6 +1330,8 @@ function moduleCopies() {
   const out = [];
   const sk = skrCopy();
   if (sk) out.push({ id: 'skr', title: t().skrTitle, text: sk.text, body: sk.body });
+  const cc = concCopy();
+  if (cc) out.push({ id: 'conc', title: TS().concCopyHead, text: cc.text, body: cc.body });
   m1Out(m1State());
   if (UI.copy) out.push({ id: 'm1', title: MODULES[0].title[lang], text: UI.copy, body: UI.copy.split('\n').slice(1) });
   for (const mod of ['m2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8', 'm9', 'm10']) {
@@ -1382,12 +1392,110 @@ function route() {
     const i = MODULES.findIndex(m => m.id === mm[1]);
     if (i === 0) renderM1(); else if (mm[1] === 'm2' || mm[1] === 'm3') renderMod(mm[1]); else if (mm[1] === 'm4' || mm[1] === 'm8') renderCustom(mm[1]); else if (mm[1] === 'm5' || mm[1] === 'm10') renderM510(mm[1]); else if (mm[1] === 'm6') renderM6(); else if (mm[1] === 'm7') renderM7(); else if (mm[1] === 'm9') renderM9(); else if (i > 0) renderWip(MODULES[i], i + 1); else renderHome();
   } else if (h === '#/data') renderBase();
+  else if (h === '#/darurat') renderSos();
+  else if (/^#\/darurat\/\w+$/.test(h)) renderSosCard(h.split('/')[2]);
   else if (h === '#/ringkasan') renderSummary();
   else if (h === '#/glosarium') renderGloss();
   else if (h === '#/tentang') renderAbout();
   else renderHome();
 }
 window.addEventListener('hashchange', () => { route(); window.scrollTo(0, 0); });
+
+
+// ----- v0.2: Kartu Kegawatdaruratan Olahraga -----
+const TS = () => SOS_T[lang];
+UI.tmrs = UI.tmrs || {};
+const tmrGet = k => (UI.tmrs[k] = UI.tmrs[k] || { t0: 0, acc: 0, run: false, log: [] });
+const tmrMs = T => T.acc + (T.run ? Date.now() - T.t0 : 0);
+const mmss = ms => { const s = Math.floor(ms / 1000); return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
+setInterval(() => {
+  const el = document.getElementById('tmrVal'); if (!el) return;
+  const k = el.dataset.k, T = UI.tmrs[k]; if (!T || !T.run) return;
+  const ms = tmrMs(T); el.textContent = mmss(ms);
+  const cy = document.getElementById('tmrCycle'); if (cy) cy.textContent = TS().cycle(Math.floor(ms / 120000) + 1);
+}, 250);
+const sosRow = sp => `<a class="sosrow" href="#/darurat/${sp.k}"><span class="sosic">${svg(sp.icon, '#B91C1C', 20)}</span><span class="sostx"><span class="sosnm">${esc(sp.name[lang])}</span><span class="sossub">${esc(sp.sub[lang])}</span></span>${svg('chevr', '#B91C1C', 20)}</a>`;
+function renderSos() {
+  const T = TS();
+  app.innerHTML = `${pageHeader(T.sosKicker, T.sosTitle, T.sosSub, true)}<main class="main">
+    <div class="callrow"><a class="callbtn" href="tel:112">${svg('phone', '#fff', 20)}<span>${esc(T.call112)}</span></a><a class="callbtn" href="tel:119">${svg('phone', '#fff', 20)}<span>${esc(T.call119)}</span></a></div>
+    <div class="soslist">${sosRow(SOS[0])}</div>
+    <div class="soshead">${esc(T.other.toUpperCase())}</div>
+    <div class="soslist">${SOS.slice(1).map(sosRow).join('')}</div>
+    <div class="pqbox stop" style="margin-top:14px"><span>${esc(T.sosWarn)}</span></div>
+    <div class="foot"><span>${esc(T.sources)}</span><span>${esc(t().meta2)}</span></div>
+  </main>${nav('sos')}`;
+}
+const sosSec = (cls, title, items, ordered = false) => items && items.length ? `<section class="card sossec ${cls}" style="margin-top:14px"><h2 class="sosk">${esc(title.toUpperCase())}</h2>${ordered ? `<ol class="sosol">${items.map((x, i) => `<li><span class="sosn">${i + 1}</span><span>${esc(x[lang])}</span></li>`).join('')}</ol>` : `<ul class="sosul">${items.map(x => `<li>${esc(x[lang])}</li>`).join('')}</ul>`}</section>` : '';
+function sosTimer(sp) {
+  const T = TS(), R = tmrGet(sp.k), ms = tmrMs(R);
+  const main = R.run ? T.pause : R.acc > 0 ? T.resume : T.start;
+  const log = sp.timer === 'ehs' ? `<div class="tmrlog"><label class="field" style="margin:0"><span class="lbl" style="color:#FFE3CC">${esc(T.tempLbl)}</span><span class="inbox" style="background:#fff"><input id="tmrTemp" type="text" inputmode="decimal" autocomplete="off" aria-label="${esc(T.tempLbl)}"><span class="unit">°C</span></span></label>
+      <button type="button" class="tmrbtn ghost" data-tmr="log">${esc(T.logTemp)}</button>
+      <div class="tmrlist">${R.log.length ? R.log.map(x => `<span>${esc(x.v)} °C · ${mmss(x.ms)}</span>`).join('') : `<span>${esc(T.tempNone)}</span>`}</div></div>` : `<div class="tmrcyc" id="tmrCycle">${esc(T.cycle(Math.floor(ms / 120000) + 1))}</div>`;
+  return `<section class="tmr" aria-label="${esc(sp.timer === 'cpr' ? T.tmrCpr : T.tmrEhs)}" style="margin-top:14px">
+    <div class="tmrhd">${svg('timer', '#FFE3CC', 18)}<span>${esc((sp.timer === 'cpr' ? T.tmrCpr : T.tmrEhs).toUpperCase())}</span></div>
+    <div class="tmrval" id="tmrVal" data-k="${sp.k}" aria-live="off">${mmss(ms)}</div>
+    <div class="tmrbtns"><button type="button" class="tmrbtn" data-tmr="go">${esc(main)}</button><button type="button" class="tmrbtn ghost" data-tmr="reset">${esc(T.reset)}</button></div>
+    ${log}</section>`;
+}
+function renderSosCard(k) {
+  const sp = SOS.find(x => x.k === k); if (!sp) { renderSos(); return; }
+  if (sp.special) { renderConc(); return; }
+  const T = TS();
+  app.innerHTML = `${pageHeader(T.cardKicker, sp.name[lang], sp.sub[lang], true, '#/darurat')}<main class="main">
+    ${sosSec('red', T.kenali, sp.kenali)}
+    ${sosSec('red', T.lakukan, sp.lakukan, true)}
+    ${sp.timer ? sosTimer(sp) : ''}
+    ${sosSec('', T.jangan, sp.jangan)}
+    ${sosSec('', T.lanjut, sp.lanjut)}
+    ${sp.note ? `<div class="pqbox warn" style="margin-top:14px"><span>${esc(sp.note[lang])}</span></div>` : ''}
+    <section class="card" style="margin-top:14px">${fxBtn(`sos-${sp.k}`, true)}${UI.mfx.has(`sos-${sp.k}`) ? srcBox(`sos-${sp.k}`, SOS_REF, sp.refs) : ''}</section>
+    <div class="foot"><span>${esc(T.sosWarn)}</span><span>${esc(t().meta2)}</span></div>
+  </main>${nav('sos')}`;
+}
+// Konkusi (tab: di lapangan / tahapan kembali / SCAT6)
+UI.ctab = UI.ctab || 0;
+const concList = (attr, list, store, showEn) => list.map((x, i) => `<label class="ckrow"><input type="checkbox" data-${attr}="${i}" ${store[i] ? 'checked' : ''}><span><span>${esc(x[lang])}</span>${showEn && lang === 'id' ? `<span class="cken">${esc(x.en)}</span>` : ''}</span></label>`).join('');
+function concCopy() {
+  const T = TS(), c = S.sos, rf = CONC.redFlags.filter((_, i) => c.rf[i]), rm = CONC.remove.filter((_, i) => c.rm[i]);
+  const lines = [];
+  if (rf.length) lines.push(`${T.copyRf}: ${rf.map(x => x[lang]).join('; ')}`);
+  if (rm.length) lines.push(`${T.copyRm}: ${rm.map(x => x[lang]).join('; ')}`);
+  if (c.rts !== '') lines.push(`${T.copyStep}: ${Number(c.rts) + 1} – ${CONC.rts[c.rts][0][lang]}`);
+  if (!lines.length) return null;
+  const body = [...lines, t().srcLine(T.copySrc)], bs = baseSummary();
+  return { text: [`${T.concCopyHead} · ${todayStr()}`, ...(bs ? [`${t().baseLabel}: ${bs}`] : []), ...body].join('\n'), body };
+}
+function concOut() {
+  const T = TS(), c = S.sos, nrf = Object.values(c.rf).filter(Boolean).length, nrm = Object.values(c.rm).filter(Boolean).length;
+  if (UI.ctab === 0) return `<section class="card sossec red" style="margin-top:14px"><h2 class="sosk">${esc(T.rfHead.toUpperCase())}</h2><span class="hint">${esc(T.rfHint)}</span>${concList('rf', CONC.redFlags, c.rf, true)}</section>
+    ${nrf ? `<div class="pqbox danger" style="margin-top:14px"><span>${esc(T.rfOn(nrf))}</span></div>` : ''}
+    <section class="card" style="margin-top:14px"><h2 class="sosk">${esc(T.rmHead.toUpperCase())}</h2>${concList('rm', CONC.remove, c.rm, false)}</section>
+    ${nrm ? `<div class="pqbox warn" style="margin-top:14px"><span>${esc(T.rmOn)}</span></div>` : ''}${!nrf && !nrm ? `<p class="empty" style="margin:14px 0 0">${esc(T.noneFound)}</p>` : ''}`;
+  if (UI.ctab === 1) {
+    const step = c.rts === '' ? -1 : Number(c.rts);
+    const opts = `<option value="" ${step < 0 ? 'selected' : ''}>${esc(T.stepNone)}</option>` + CONC.rts.map((r, i) => `<option value="${i}" ${i === step ? 'selected' : ''}>${i + 1}. ${esc(r[0][lang])}</option>`).join('');
+    const rows = (list, cur) => `<ol class="steps">${list.map((r, i) => `<li class="${i < cur ? 'done' : i === cur ? 'now' : ''}"><span class="stn">${i + 1}</span><span class="stx"><span class="stt">${esc(r[0][lang])}</span><span class="sts">${esc(r[1][lang])}</span></span></li>`).join('')}</ol>`;
+    return `<section class="card" style="margin-top:14px"><h2 class="sosk">${esc(T.rtsHead.toUpperCase())}</h2>
+      <label class="field"><span class="lbl" id="rtsLbl">${esc(T.curStep)}</span><select class="sel" id="rtsSel" aria-labelledby="rtsLbl">${opts}</select></label>${rows(CONC.rts, step)}</section>
+      <section class="card" style="margin-top:14px"><ul class="sosul">${T.rtsNotes.map(x => `<li>${esc(x)}</li>`).join('')}</ul></section>
+      <section class="card" style="margin-top:14px"><h2 class="sosk">${esc(T.rtlHead.toUpperCase())}</h2>${rows(CONC.rtl, -1)}</section>`;
+  }
+  return `<section class="card" style="margin-top:14px"><h2 class="h2">${esc(T.scatHead)}</h2><p style="margin:0;font-size:14px;line-height:1.5">${esc(T.scatBody)}</p>
+    <a class="btn-sec" href="https://doi.org/10.1136/bjsports-2023-107036" target="_blank" rel="noopener">${svg('link', '#9A3412', 18)}<span>${esc(T.scatOpen)}</span></a></section>
+    <div class="pqbox warn" style="margin-top:14px"><span>${esc(T.scatPerm)}</span></div>`;
+}
+function renderConc() {
+  const T = TS(), sp = SOS[0];
+  app.innerHTML = `${pageHeader(T.cardKicker, sp.name[lang], sp.sub[lang], true, '#/darurat')}<main class="main">
+    <div class="seg" role="group" aria-label="${esc(sp.name[lang])}" style="background:#fff;border:1px solid var(--line)">${T.cTabs.map((l, i) => `<button type="button" data-ctab="${i}" aria-pressed="${UI.ctab === i}">${esc(l)}</button>`).join('')}</div>
+    <div id="concout">${concOut()}</div>
+    ${copyCard(concCopy())}
+    <section class="card" style="margin-top:14px">${fxBtn('sos-konkusi', true)}${UI.mfx.has('sos-konkusi') ? srcBox('sos-konkusi', SOS_REF, sp.refs) : ''}</section>
+    <div class="foot"><span>${esc(T.sosWarn)}</span><span>${esc(t().meta2)}</span></div>
+  </main>${nav('sos')}`;
+}
 
 // ---------- Interaksi (delegasi) ----------
 app.addEventListener('input', e => {
@@ -1424,6 +1532,8 @@ app.addEventListener('change', e => {
     const mod = location.hash.match(/^#\/m\/(m2|m3)$/)?.[1]; if (!mod) return;
     S[mod].test = e.target.value; save(); renderMod(mod); document.getElementById('testSel')?.focus(); return;
   }
+  if (e.target.dataset.rf !== undefined || e.target.dataset.rm !== undefined) { const isRf = e.target.dataset.rf !== undefined, i = isRf ? e.target.dataset.rf : e.target.dataset.rm, st = isRf ? S.sos.rf : S.sos.rm; if (e.target.checked) st[i] = true; else delete st[i]; save(); const y = window.scrollY; renderConc(); window.scrollTo(0, y); document.querySelector(`[data-${isRf ? 'rf' : 'rm'}="${i}"]`)?.focus(); return; }
+  if (e.target.id === 'rtsSel') { S.sos.rts = e.target.value; save(); const y = window.scrollY; renderConc(); window.scrollTo(0, y); document.getElementById('rtsSel')?.focus(); return; }
   if (e.target.id === 'm7Sel') { S.m7.sel = e.target.value; save(); refreshM79('m7', true); document.getElementById('m7Sel')?.focus(); return; }
   if (e.target.id === 'm9Sel') { S.m9.test = e.target.value; save(); refreshM79('m9'); document.getElementById('m9Sel')?.focus(); return; }
   if (e.target.id === 'eqSel') { S.m5.eq = e.target.value; save(); UI.ffmCopied = false; refreshM510('m5'); document.getElementById('eqSel')?.focus(); return; }
@@ -1454,6 +1564,15 @@ app.addEventListener('click', async e => {
   if (b.dataset.ny) { const k = b.dataset.ny, v = Number(b.dataset.v); if (S.m6.s[k] === v) delete S.m6.s[k]; else S.m6.s[k] = v; save(); UI.clearArmed = false; refreshM6(); document.querySelector(`[data-ny="${k}"][data-v="${v}"]`)?.focus(); return; }
   if (b.dataset.nyview) { S.m6.view = b.dataset.nyview; save(); renderM6(); document.querySelector(`[data-nyview="${b.dataset.nyview}"]`)?.focus(); return; }
   if (b.dataset.mfx && location.hash === '#/m/m6') { const k = b.dataset.mfx; UI.mfx.has(k) ? UI.mfx.delete(k) : UI.mfx.add(k); refreshM6(false); document.querySelector(`[data-mfx="${k}"]`)?.focus(); return; }
+  if (b.dataset.ctab !== undefined) { UI.ctab = Number(b.dataset.ctab); renderConc(); document.querySelector(`[data-ctab="${UI.ctab}"]`)?.focus(); return; }
+  if (b.dataset.tmr) {
+    const k = document.getElementById('tmrVal')?.dataset.k; if (!k) return; const R = tmrGet(k);
+    if (b.dataset.tmr === 'go') { if (R.run) { R.acc += Date.now() - R.t0; R.run = false; } else { R.t0 = Date.now(); R.run = true; } }
+    else if (b.dataset.tmr === 'reset') { UI.tmrs[k] = { t0: 0, acc: 0, run: false, log: [] }; }
+    else if (b.dataset.tmr === 'log') { const v = (document.getElementById('tmrTemp')?.value || '').trim().replace(',', '.'); const n = parseFloat(v); if (!Number.isFinite(n) || n < 30 || n > 45) { document.getElementById('tmrTemp')?.focus(); return; } R.log.push({ v: num(n, 1), ms: tmrMs(R) }); }
+    const y = window.scrollY; renderSosCard(k); window.scrollTo(0, y); document.querySelector(`[data-tmr="${b.dataset.tmr}"]`)?.focus(); return;
+  }
+  if (b.dataset.mfx && /^#\/darurat\//.test(location.hash)) { const k = b.dataset.mfx; UI.mfx.has(k) ? UI.mfx.delete(k) : UI.mfx.add(k); const y = window.scrollY; renderSosCard(location.hash.split('/')[2]); window.scrollTo(0, y); document.querySelector(`[data-mfx="${k}"]`)?.focus(); return; }
   if (b.dataset.m7pick) { const k = b.dataset.m7pick, i = S.m7.picked.indexOf(k); i >= 0 ? S.m7.picked.splice(i, 1) : S.m7.picked.push(k); save(); refreshM79('m7', true); document.querySelector(`[data-m7pick="${k}"]`)?.focus(); return; }
   if (b.dataset.mfx && /^#\/m\/(m7|m9)$/.test(location.hash)) { const k = b.dataset.mfx, mod = location.hash.slice(4); UI.mfx.has(k) ? UI.mfx.delete(k) : UI.mfx.add(k); refreshM79(mod); document.querySelector(`[data-mfx="${k}"]`)?.focus(); return; }
   if (b.dataset.guide) { const k = b.dataset.guide; UI.guide.has(k) ? UI.guide.delete(k) : UI.guide.add(k); refreshM510('m5'); document.querySelector(`[data-guide="${k}"]`)?.focus(); return; }
