@@ -48,6 +48,8 @@ a:hover { color: var(--nav-ink); }
 .h2 { margin: 0; font-size: 16px; font-weight: 800; }
 .muted { font-size: 12px; font-weight: 600; color: var(--muted); }
 .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.comph { margin: 18px 0 8px; font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #9A3412; }
+#tiles > .comph:first-child { margin-top: 4px; }
 .tile { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 16px; background: var(--tint); text-decoration: none; min-height: 88px; color: var(--ink); }
 .tile-top { display: flex; justify-content: space-between; align-items: center; }
 .tile-ic { display: flex; width: 34px; height: 34px; border-radius: 10px; background: #fff; align-items: center; justify-content: center; }

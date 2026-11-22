@@ -155,3 +155,32 @@ export const bmChangePct = (pre, post) => (pre - post) / pre * 100;
 export const lsiDist = (inj, healthy) => inj / healthy * 100;        // jarak atau torsi (Noyes 1991)
 export const lsiTime = (inj, healthy) => healthy / inj * 100;        // tes berwaktu: waktu sehat / waktu cedera
 export const hqRatio = (h, q) => h / q;                               // konvensional (Hkon/Qkon) atau fungsional (Heks/Qkon)
+
+// ===== v0.2 Tahap 2: neuromotor, daya tahan & power otot, fleksibilitas =====
+// Kecepatan jalan (m/s) = jarak / waktu
+export const gaitSpeed = (m, s) => m / s;
+// Y-Balance komposit (% panjang tungkai) = (anterior + posteromedial + posterolateral) / (3 × panjang tungkai) × 100 (Plisky 2009)
+export const ybtComposite = (a, pm, pl, ll) => (a + pm + pl) / (3 * ll) * 100;
+// SEM intrarater Y-Balance (cm) — Plisky 2009, Tabel 3
+export const YBT_SEM = { a: 2.01, pm: 2.83, pl: 3.11 };
+// Tinggi lompat dari waktu melayang: h = g × t² / 8 (Bosco 1983); t dalam detik, hasil cm
+export const jumpHeightCm = tMs => 9.81 * (tMs / 1000) ** 2 / 8 * 100;
+// Stair climb power (W) = BB × 9,8 × tinggi anak tangga total (m) / waktu (dtk) — Ni 2017
+export const stairPower = (kg, hM, s) => kg * 9.8 * hM / s;
+// 30-s chair stand: batas bawah rentang normal (tengah 50%) Rikli & Jones, dipakai CDC STEADI 2017 sebagai "di bawah rata-rata"
+const CS30 = { M: [14, 12, 12, 11, 10, 8, 7], F: [12, 11, 10, 10, 9, 8, 4] };
+export const cs30Cut = (age, male) => {
+  if (!(age >= 60 && age < 95)) return null;
+  return CS30[male ? 'M' : 'F'][Math.min(6, Math.floor((age - 60) / 5))];
+};
+// Four Stage Balance (CDC STEADI): tahap tertinggi yang ditahan ≥10 dtk; tandem = tahap 3
+export const fourStage = t => {
+  let reached = 0;
+  for (let i = 0; i < 4; i++) { if (Number.isFinite(t[i]) && t[i] >= 10) reached = i + 1; else break; }
+  const failedBefore3 = [0, 1].some(i => Number.isFinite(t[i]) && t[i] < 10);
+  const tandem = Number.isFinite(t[2]) ? t[2] >= 10 : (failedBefore3 ? false : null);
+  return { reached, tandem };
+};
+// COD deficit (dtk) = waktu 505 − waktu sprint 10 m (Nimphius 2016)
+export const codDeficit = (t505, t10) => t505 - t10;
+export const meanOf = a => { const x = a.filter(Number.isFinite); return x.length ? x.reduce((p, q) => p + q, 0) / x.length : NaN; };

@@ -10,7 +10,7 @@ import { M510_REF, SITES, EQS, EQ_ORDER, SOMATO_SITES, M10_FIELDS, M510_T, GUIDE
 import { NYPR, nyprSvg, NYPR_REF } from './nypr.js';
 import { M79_REF, SUPPS, M7_SAFE, LSI_ROWS, HQ_FIELDS, M79_T } from './m79.js';
 import { SOS, SOS_REF, SOS_T, CONC } from './darurat.js';
-import { MODULES, T, M1_FORMULAS, KARVONEN_REF, GLOSSARY, ABOUT } from './i18n.js';
+import { MODULES, COMPS, T, M1_FORMULAS, KARVONEN_REF, GLOSSARY, ABOUT } from './i18n.js';
 import { S, load, save, clear, expireIfDue, expiresAt, isEmpty } from './session.js';
 import { startTitleCase } from './titlecase.js';
 import { SKR_REF, LINKS, ACSM_Q, ACSM_Q_INTENT, ACSM_Q_CLEAR, acsmResult, ACSM_ALWAYS, AHA14, AHA_GROUPS } from './screening.js';
@@ -27,6 +27,8 @@ const ICONS = {
   pill: '<path d="m10.5 20.5-7-7a5 5 0 0 1 7-7l7 7a5 5 0 0 1-7 7Z"/><path d="m8.5 8.5 7 7"/>',
   body: '<circle cx="12" cy="5" r="2"/><path d="M12 7v7"/><path d="M7 10h10"/><path d="m9.5 21 2.5-7 2.5 7"/>',
   balance: '<path d="M7 20V9"/><path d="M17 20V5"/><path d="M4 20h16"/>',
+  walk: '<circle cx="13" cy="4" r="2"/><path d="M12 8v6l-3 7"/><path d="m12 14 3 2v5"/><path d="m8 11 4-3 4 3"/>',
+  stretch: '<circle cx="6" cy="5" r="2"/><path d="M6 7v6l8 4"/><path d="M6 13 3 21"/><path d="m14 17 6-2"/>',
   drop: '<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11Z"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
   grid: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
@@ -104,11 +106,14 @@ function homeTiles() {
   const q = query.trim().toLowerCase();
   const list = MODULES.map((m, i) => ({ ...m, n: i + 1 })).filter(m => !q ||
     [m.title.id, m.title.en, m.cat.id, m.cat.en, m.kw || ''].some(s => s.toLowerCase().includes(q)));
-  const tiles = list.map(m => `<a class="tile" href="#/m/${m.id}">
+  const tile = m => `<a class="tile" href="#/m/${m.id}">
       <div class="tile-top"><span class="tile-ic">${svg(m.icon, '#C2410C')}</span>
       ${m.ready ? `<span class="tile-num">${String(m.n).padStart(2, '0')}</span>` : `<span class="soon">${esc(t().soon)}</span>`}</div>
-      <div><div class="tile-title">${esc(m.title[lang])}</div><div class="tile-cat">${esc(m.cat[lang])}</div></div></a>`).join('');
-  return tiles || (skrTile() ? '' : `<p class="empty">${esc(t().noResult)}</p>`);
+      <div><div class="tile-title">${esc(m.title[lang])}</div><div class="tile-cat">${esc(m.cat[lang])}</div></div></a>`;
+  if (!list.length) return skrTile() ? '' : `<p class="empty">${esc(t().noResult)}</p>`;
+  // pencarian: daftar datar; tanpa pencarian: dikelompokkan per komponen kebugaran ACSM 2026
+  if (q) return `<div class="grid">${list.map(tile).join('')}</div>`;
+  return COMPS.map(c => { const ms = list.filter(m => m.comp === c.k); return ms.length ? `<h3 class="comph">${esc(c[lang])}</h3><div class="grid">${ms.map(tile).join('')}</div>` : ''; }).join('');
 }
 const SKR_KW = 'skrining screening prapartisipasi preparticipation par-q parq acsm aha 14 elemen ppe clearance kelaikan';
 function skrTile() {
@@ -127,7 +132,7 @@ function renderHome() {
       <input type="search" id="q" value="${esc(query)}" placeholder="${esc(t().searchPh)}" autocomplete="off"></label>
     <div id="skrSlot">${skrTile()}</div>
     <div class="row-between"><h2 class="h2">${esc(t().calculators)}</h2><span class="muted">${esc(t().modulesCount(MODULES.length))}</span></div>
-    <div class="grid" id="tiles">${homeTiles()}</div></main>${nav('calc')}`;
+    <div id="tiles">${homeTiles()}</div></main>${nav('calc')}`;
 }
 
 // ---------- Modul belum siap ----------
@@ -1072,7 +1077,8 @@ function refreshM79(mod, keepInputs = false) {
 }
 
 // ---------- Modul 2 & 3: tes berbasis data (lihat tests.js) ----------
-const MODNUM = { m2: '02', m3: '03' };
+const MODNUM = { m2: '02', m3: '03', m11: '11', m12: '12', m13: '13' };
+const GEN = /^#\/m\/(m2|m3|m11|m12|m13)$/; // modul dengan mesin "pilih tes"
 const DEFKEY = { queens: 'steptest', yoyo: 'yoyo', ift: 'vift', smwt: 'smwt', grip: 'grip', sts: 'sts' };
 const ctx = () => ({ L: lang, f0: x => num(x, 0), f1: x => num(x, 1), f2: x => num(x, 2), u: lang === 'id' ? 'mL/kg/mnt' : 'mL/kg/min' });
 const fid = (mod, tid, k) => `t-${mod}-${tid}-${k}`;
@@ -1086,6 +1092,7 @@ function evalTest(mod, test) {
   let fieldsOk = true;
   for (const f of test.fields) {
     const raw = S[mod].v[`${test.id}.${f.k}`] ?? '';
+    if (f.opt) { v[f.k] = raw === '' ? f.def : Number(raw); continue; }
     const x = parse(raw);
     v[f.k] = NaN;
     if (raw !== '') {
@@ -1143,6 +1150,11 @@ function modFields(mod, s) {
   }
   for (const f of test.fields) {
     const id = fid(mod, test.id, f.k);
+    if (f.opt) {
+      const cur = Number(S[mod].v[`${test.id}.${f.k}`] || f.def);
+      out.push(`<label class="field"><span class="lbl">${esc(f.label[lang])}</span><select class="sel" id="${id}" data-key="${test.id}.${f.k}" data-mod="${mod}">${f.options.map(o => `<option value="${o.v}" ${o.v === cur ? 'selected' : ''}>${esc(o.label[lang])}</option>`).join('')}</select></label>`);
+      continue;
+    }
     out.push(field(id, f.label[lang], f.unit[lang], S[mod].v[`${test.id}.${f.k}`] ?? '', {
       req: f.req, tag: f.tag ? f.tag[lang] : '', hint: f.hint ? f.hint[lang] : '', err: s.err[id], dec: !!f.dec, key: `${test.id}.${f.k}`, mod,
     }));
@@ -1170,14 +1182,14 @@ function modOut(mod, s) {
   else if (!s.res) body = `<p class="empty" style="margin:0">${esc(t().fillTest)}</p>`;
   else {
     const r = s.res, d = r.d ?? 1, unit = r.unit ?? ctx().u;
-    body = `<div class="big"><b>${num(r.val, d)}</b><span>${esc(unit)}</span></div>
+    body = `<div class="big"><b>${r.valText ? esc(r.valText) : num(r.val, d)}</b><span>${esc(unit)}</span></div>
       ${(r.rows || []).map(([k, v]) => kvRow(k, v)).join('')}
       ${r.flag ? `<div class="note">${svg(r.flag.level === 'warn' ? 'alert' : 'info', '#9A3412')}<span>${esc(r.flag.text)}</span></div>` : ''}
       ${s.outAge ? `<div class="note">${svg('alert', '#9A3412')}<span>${esc(t().outAge(test.ageRange[0], test.ageRange[1]))}${test.ageNote ? ` ${esc(test.ageNote[lang])}` : ''}</span></div>` : ''}
       <span class="hint">${esc(t().popLbl)}: ${esc(test.pop[lang])}</span>
       ${fxBtn(test.id)}${UI.mfx.has(test.id) ? fxBox(test.id, r.f, r.s, test.pop[lang], test.refs) : ''}`;
   }
-  const def = DEFKEY[test.id] || 'vo2max';
+  const def = test.def || DEFKEY[test.id] || 'vo2max';
   const copy = modCopy(mod);
   return `<section class="card" aria-labelledby="h-res">
       <div class="lbl-row"><h2 class="h2" id="h-res">${esc(head(s.res))}</h2>${ibtn(def, head(s.res))}</div>
@@ -1275,9 +1287,9 @@ function refreshCurrent(keepInputs = false) {
   const hs = h.match(/^#\/darurat\/(\w+)$/); if (hs) { const sp = SOS.find(x => x.k === hs[1]); const box = document.getElementById('dosebox'); if (sp && sp.dose && box) { updateFieldMsgs(m1State()); const w = sosW(); box.innerHTML = sp.dose.map(d => { const v = d.t ? d.t[lang] : Number.isFinite(w) ? d.calc(w)[lang] : TS().needW; return d.t ? `<div class="dsrow"><span class="dsl">${esc(d.l[lang])}</span><span class="dst">${esc(v)}</span></div>` : kvRow(d.l[lang], v); }).join(''); } return; }
   if (h === '#/data') { if (keepInputs) updateFieldMsgs(m1State()); else document.getElementById('fields').innerHTML = baseFields(m1State()); }
   else if (/^#\/m\/m1$/.test(h)) refreshM1(keepInputs);
-  else { const mm = h.match(/^#\/m\/(m2|m3)$/); if (mm) refreshMod(mm[1], keepInputs); const mc = h.match(/^#\/m\/(m4|m8)$/); if (mc) refreshCustom(mc[1], keepInputs); const md = h.match(/^#\/m\/(m5|m10)$/); if (md) refreshM510(md[1], keepInputs); const me = h.match(/^#\/m\/(m7|m9)$/); if (me) refreshM79(me[1], keepInputs); if (h === '#/m/m6') refreshM6(); }
+  else { const mm = h.match(GEN); if (mm) refreshMod(mm[1], keepInputs); const mc = h.match(/^#\/m\/(m4|m8)$/); if (mc) refreshCustom(mc[1], keepInputs); const md = h.match(/^#\/m\/(m5|m10)$/); if (md) refreshM510(md[1], keepInputs); const me = h.match(/^#\/m\/(m7|m9)$/); if (me) refreshM79(me[1], keepInputs); if (h === '#/m/m6') refreshM6(); }
 }
-function currentState() { const mm = location.hash.match(/^#\/m\/(m2|m3)$/); if (mm) return modState(mm[1]); const mc = location.hash.match(/^#\/m\/(m4|m8)$/); if (mc) return customState(mc[1]); if (location.hash === '#/m/m5') return m5State(); if (location.hash === '#/m/m10') return m10State(); if (location.hash === '#/m/m9') return m9State(); return m1State(); }
+function currentState() { const mm = location.hash.match(GEN); if (mm) return modState(mm[1]); const mc = location.hash.match(/^#\/m\/(m4|m8)$/); if (mc) return customState(mc[1]); if (location.hash === '#/m/m5') return m5State(); if (location.hash === '#/m/m10') return m10State(); if (location.hash === '#/m/m9') return m9State(); return m1State(); }
 
 // ---------- Sesi: data dasar & ringkasan ----------
 const hhmm = ts => { const d = new Date(ts); return `${String(d.getHours()).padStart(2, '0')}.${String(d.getMinutes()).padStart(2, '0')}`; };
@@ -1335,7 +1347,7 @@ function moduleCopies() {
   if (cc) out.push({ id: 'conc', title: TS().concCopyHead, text: cc.text, body: cc.body });
   m1Out(m1State());
   if (UI.copy) out.push({ id: 'm1', title: MODULES[0].title[lang], text: UI.copy, body: UI.copy.split('\n').slice(1) });
-  for (const mod of ['m2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8', 'm9', 'm10']) {
+  for (const mod of ['m2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8', 'm9', 'm10', 'm11', 'm12', 'm13']) {
     const c = mod === 'm4' || mod === 'm8' ? customCopy(mod) : mod === 'm5' ? m5Copy() : mod === 'm10' ? m10Copy() : mod === 'm6' ? m6Copy() : mod === 'm7' ? m7Copy() : mod === 'm9' ? m9Copy() : modCopy(mod);
     if (c) out.push({ id: mod, title: MODULES.find(m => m.id === mod).title[lang], text: c.text, body: c.body });
   }
@@ -1391,7 +1403,7 @@ function route() {
   if (h === '#/m/skr') renderSkr();
   else if (mm) {
     const i = MODULES.findIndex(m => m.id === mm[1]);
-    if (i === 0) renderM1(); else if (mm[1] === 'm2' || mm[1] === 'm3') renderMod(mm[1]); else if (mm[1] === 'm4' || mm[1] === 'm8') renderCustom(mm[1]); else if (mm[1] === 'm5' || mm[1] === 'm10') renderM510(mm[1]); else if (mm[1] === 'm6') renderM6(); else if (mm[1] === 'm7') renderM7(); else if (mm[1] === 'm9') renderM9(); else if (i > 0) renderWip(MODULES[i], i + 1); else renderHome();
+    if (i === 0) renderM1(); else if (MODNUM[mm[1]]) renderMod(mm[1]); else if (mm[1] === 'm4' || mm[1] === 'm8') renderCustom(mm[1]); else if (mm[1] === 'm5' || mm[1] === 'm10') renderM510(mm[1]); else if (mm[1] === 'm6') renderM6(); else if (mm[1] === 'm7') renderM7(); else if (mm[1] === 'm9') renderM9(); else if (i > 0) renderWip(MODULES[i], i + 1); else renderHome();
   } else if (h === '#/data') renderBase();
   else if (h === '#/darurat') renderSos();
   else if (/^#\/darurat\/\w+$/.test(h)) renderSosCard(h.split('/')[2]);
@@ -1563,7 +1575,7 @@ app.addEventListener('focusout', e => {
 });
 app.addEventListener('change', e => {
   if (e.target.id === 'testSel') {
-    const mod = location.hash.match(/^#\/m\/(m2|m3)$/)?.[1]; if (!mod) return;
+    const mod = location.hash.match(GEN)?.[1]; if (!mod) return;
     S[mod].test = e.target.value; save(); renderMod(mod); document.getElementById('testSel')?.focus(); return;
   }
   if (e.target.dataset.rf !== undefined || e.target.dataset.rm !== undefined || e.target.dataset.os !== undefined) { const kind = e.target.dataset.rf !== undefined ? 'rf' : e.target.dataset.rm !== undefined ? 'rm' : 'os', isRf = kind === 'rf', i = e.target.dataset[kind], st = S.sos[kind]; if (e.target.checked) st[i] = true; else delete st[i]; save(); const y = window.scrollY; renderConc(); window.scrollTo(0, y); document.querySelector(`[data-${kind}="${i}"]`)?.focus(); return; }

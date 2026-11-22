@@ -158,4 +158,43 @@ check('AHA 2025 PALS: epinefrin 0,01 mg/kg maks 1 mg; amiodaron 5 mg/kg maks 300
 check('Tenggelam: tabel derajat WMS 2024 3 kelompok', SOS.find(x => x.k === 'tenggelam').sev.length === 3);
 check('Semua rujukan kartu ada di SOS_REF', SOS.every(x => (x.refs || []).every(r => SOS_REF[r])));
 
+// ===== v0.2 Tahap 2 (Modul 11–13) — hitung tangan dari sumber primer =====
+const { gaitSpeed, ybtComposite, jumpHeightCm, stairPower, cs30Cut, fourStage, codDeficit } = await import('../js/formulas.js');
+const { TESTS, REF } = await import('../js/tests.js');
+check('Gait speed 6 m / 7,5 dtk = 0,80 m/s', near(gaitSpeed(6, 7.5), 0.8, 1e-9));
+check('Y-Balance komposit (Plisky 2009): (70+110+105)/(3×90)×100 = 105,6%', near(ybtComposite(70, 110, 105, 90), 105.56, 0.01));
+check('CMJ waktu melayang 500 ms → 30,7 cm (g·t²/8)', near(jumpHeightCm(500), 30.66, 0.01));
+check('Stair climb power (Ni 2017): 70 kg, 0,762 m, 2 dtk = 261,4 W', near(stairPower(70, 0.762, 2), 261.4, 0.1));
+check('Chair stand STEADI: pria 60–64 <14; wanita 90–94 <4; pria 72 th <12', cs30Cut(62, true) === 14 && cs30Cut(92, false) === 4 && cs30Cut(72, true) === 12);
+check('Chair stand STEADI: di luar 60–94 tanpa ambang', cs30Cut(59, true) === null && cs30Cut(95, false) === null);
+check('Chair stand STEADI: tabel lengkap pria 14,12,12,11,10,8,7 / wanita 12,11,10,10,9,8,4', [60,65,70,75,80,85,90].map(a => cs30Cut(a, true)).join() === '14,12,12,11,10,8,7' && [60,65,70,75,80,85,90].map(a => cs30Cut(a, false)).join() === '12,11,10,10,9,8,4');
+check('Four Stage: tandem 6 dtk → tahap 2, tandem gagal', (r => r.reached === 2 && r.tandem === false)(fourStage([10, 10, 6])));
+check('Four Stage: gagal di tahap 2 → tandem dianggap gagal', fourStage([10, 4]).tandem === false);
+check('Four Stage: tahap 1–2 lulus, tahap 3 belum diisi → belum dinilai', fourStage([10, 10]).tandem === null);
+check('COD deficit 2,40 − 1,80 = 0,60', near(codDeficit(2.4, 1.8), 0.6, 1e-9));
+check('Modul 11–13: jumlah tes 8/7/7', TESTS.m11.length === 8 && TESTS.m12.length === 7 && TESTS.m13.length === 7);
+check('Modul 11–13: semua rujukan ada di REF', ['m11', 'm12', 'm13'].every(m => TESTS[m].every(x => x.refs.every(r => REF[r]))));
+const cx = { L: 'id', f0: x => x.toFixed(0), f1: x => x.toFixed(1), f2: x => x.toFixed(2) };
+const T11 = id => TESTS.m11.find(x => x.id === id), T12 = id => TESTS.m12.find(x => x.id === id), T13 = id => TESTS.m13.find(x => x.id === id);
+const g70 = T11('gait').calc({ d: 6, t: 6.9 }, { age: 70 }, cx);
+check('Gait 0,87 m/s usia 70: WFG Tidak, EWGSOP2 Tidak, AWGS Ya', g70.rows.map(r => r[1]).join() === 'Tidak,Tidak,Ya');
+check('Gait usia 40: tanpa kategori', !T11('gait').calc({ d: 6, t: 6.9 }, { age: 40 }, cx).rows);
+const tg = T11('tug').calc({ t: 13 }, { age: 70 }, cx);
+check('TUG 13 dtk usia 70: STEADI Ya, WFG Tidak, EWGSOP2 Tidak', tg.rows.map(r => r[1]).join() === 'Ya,Tidak,Tidak');
+const tg2 = T11('tug').calc({ t: 20 }, { age: 70 }, cx);
+check('TUG 20 dtk: ketiga ambang Ya', tg2.rows.map(r => r[1]).join() === 'Ya,Ya,Ya');
+check('Four Stage usia 70 tandem 6 dtk → peringatan', T11('fourstage').calc({ s1: 10, s2: 10, s3: 6, s4: NaN }, { age: 70 }, cx).flag.level === 'warn');
+check('Functional Reach rerata 3 percobaan', near(T11('freach').calc({ r1: 25, r2: 27, r3: 29 }, {}, cx).val, 27, 1e-9));
+const yb = T11('ybt').calc({ ll: 90, llL: NaN, aR: 70, pmR: 110, plR: 105, aL: 66, pmL: 108, plL: 104 }, {}, cx);
+check('YBT: selisih anterior 4,0 cm > SEM; posteromedial 2,0 ≤ SEM 2,83', yb.rows[2][1] === '4.0 cm' && yb.rows[3][1].includes('≤ SEM'));
+check('505: COD deficit kanan 2,50−1,85=0,65; rerata (0,65+0,75)/2', near(T11('cod505').calc({ r: 2.5, l: 2.6, s10: 1.85 }, {}, cx).val, 0.70, 1e-9));
+check('Chair stand 10× pria 72 th: di bawah rentang normal (<12)', T12('cs30').calc({ n: 10 }, { age: 72, sex: 'M' }, cx).flag.level === 'warn');
+check('Chair stand 12× pria 72 th: tidak di bawah', T12('cs30').calc({ n: 12 }, { age: 72, sex: 'M' }, cx).flag.level === 'info');
+check('Stair climb rerata 2 percobaan (1,9 & 2,1 dtk)', near(T12('scpt').calc({ h: 76.2, t1: 1.9, t2: 2.1 }, { weight: 70 }, cx).val, 261.4, 0.1));
+check('Sit-and-reach −5 cm (belum mencapai)', T13('sitreach').calc({ d: 5, o: 2 }, {}, cx).val === -5);
+check('Back scratch: kanan +2, kiri −6 → terbaik +2, selisih 8', (r => r.val === 2 && r.rows[2][1] === '8.0 cm')(T13('scratch').calc({ r: 2, ro: 1, l: 6, lo: 2 }, {}, cx)));
+check('Knee-to-wall selisih 2,5 cm > MDC 1,9', T13('ktw').calc({ r: 12, l: 9.5 }, {}, cx).flag.text.includes('melebihi'));
+check('MMST: 21,5 cm → pertambahan 6,5 cm', near(T13('mmst').calc({ x: 21.5 }, {}, cx).val, 6.5, 1e-9));
+check('ROM selisih |140−128| = 12°', T13('rom').calc({ r: 140, l: 128 }, {}, cx).val === 12);
+
 console.log(`\n${n} pemeriksaan lulus.`);

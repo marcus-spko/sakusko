@@ -217,3 +217,8 @@ export const RM_INFO = {
     en: 'Reps = mean ± between-individual SD from a meta-regression of 269 studies (7,289 people, mostly male, healthy, aged <59). Nuzzo built separate tables only for the bench press and leg press; the squat, deadlift and other lifts use the General table. The squat was analysed without a meaningful difference; the deadlift was not analysed separately.',
   },
 };
+
+// v0.2 Tahap 2 — Modul 11–13 memakai mesin "pilih tes" yang sama
+import { TESTS2, REF2 } from './tests2.js';
+Object.assign(TESTS, TESTS2);
+Object.assign(REF, REF2);

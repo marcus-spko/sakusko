@@ -15,6 +15,9 @@ const blank = () => ({
   m10: { v: {} },
   m6: { view: 'back', s: {} },
   m9: { v: {}, test: 'single' },
+  m11: { test: 'gait', v: {} },   // v0.2 Tahap 2: neuromotor
+  m12: { test: 'pushup', v: {} }, // daya tahan & power otot
+  m13: { test: 'sitreach', v: {} }, // fleksibilitas
   m7: { sel: 'cre', picked: [] }, // picked: kunci suplemen yang masuk Ringkasan
   sos: { rf: {}, rm: {}, os: {} }, // konkusi: red flag, tanda keluar lapangan, tanda terlihat SCAT6 + keluhan gejala (os.sy)
   skr: { part: 'acsm', active: '', known: '', symp: '', intent: '', cleared: '', aha: {}, pqLang: '', pq: { g: {}, q1: {}, txt: {}, f: {} } },
@@ -38,6 +41,7 @@ function assign(src) {
   S.m9 = { ...b.m9, ...(src.m9 || {}), v: { ...((src.m9 || {}).v || {}) } };
   S.m10 = { ...b.m10, ...(src.m10 || {}), v: { ...((src.m10 || {}).v || {}) } };
   S.m8 = { ...b.m8, ...(src.m8 || {}), v: { ...((src.m8 || {}).v || {}) } };
+  for (const k of ['m11', 'm12', 'm13']) S[k] = { ...b[k], ...(src[k] || {}), v: { ...((src[k] || {}).v || {}) } };
   const spq = (src.skr || {}).pq || {};
   S.skr = { ...b.skr, ...(src.skr || {}), aha: { ...((src.skr || {}).aha || {}) }, pq: { g: { ...(spq.g || {}) }, q1: { ...(spq.q1 || {}) }, txt: { ...(spq.txt || {}) }, f: { ...(spq.f || {}) } } };
   delete S.skr.parq;
@@ -46,7 +50,7 @@ function assign(src) {
 
 export function isEmpty() {
   const noVals = o => Object.values(o.v).every(v => v === '');
-  return Object.values(S.base).every(v => v === '') && S.m1.hrRest === '' && S.m1.hrMeas === '' && noVals(S.m2) && noVals(S.m3) && noVals(S.m4) && noVals(S.m8) && noVals(S.m5) && noVals(S.m10) && noVals(S.m9) && Object.keys(S.m6.s).length === 0 && !S.m4.cho && S.m7.picked.length === 0 && Object.keys(S.sos.rf).length === 0 && Object.keys(S.sos.rm).length === 0 && Object.keys(S.sos.os).length === 0
+  return Object.values(S.base).every(v => v === '') && S.m1.hrRest === '' && S.m1.hrMeas === '' && noVals(S.m2) && noVals(S.m3) && noVals(S.m4) && noVals(S.m8) && noVals(S.m5) && noVals(S.m10) && noVals(S.m9) && noVals(S.m11) && noVals(S.m12) && noVals(S.m13) && Object.keys(S.m6.s).length === 0 && !S.m4.cho && S.m7.picked.length === 0 && Object.keys(S.sos.rf).length === 0 && Object.keys(S.sos.rm).length === 0 && Object.keys(S.sos.os).length === 0
     && ['active', 'known', 'symp', 'intent', 'cleared'].every(k => S.skr[k] === '') && Object.keys(S.skr.aha).length === 0
     && ['g', 'f'].every(k => Object.values(S.skr.pq[k]).every(v => !v)) && Object.values(S.skr.pq.q1).every(v => !v) && Object.values(S.skr.pq.txt).every(v => !v);
 }
@@ -68,7 +72,7 @@ export function save() {
   S.updatedAt = Date.now();
   try {
     if (isEmpty()) localStorage.removeItem(KEY);
-    else localStorage.setItem(KEY, JSON.stringify({ base: S.base, m1: S.m1, m2: S.m2, m3: S.m3, m4: S.m4, m8: S.m8, m5: S.m5, m10: S.m10, m6: S.m6, m7: S.m7, sos: S.sos, m9: S.m9, skr: S.skr, updatedAt: S.updatedAt }));
+    else localStorage.setItem(KEY, JSON.stringify({ base: S.base, m1: S.m1, m2: S.m2, m3: S.m3, m4: S.m4, m8: S.m8, m5: S.m5, m10: S.m10, m6: S.m6, m7: S.m7, sos: S.sos, m9: S.m9, m11: S.m11, m12: S.m12, m13: S.m13, skr: S.skr, updatedAt: S.updatedAt }));
   } catch (e) { /* penyimpanan tidak tersedia: data tetap di memori */ }
 }
 
