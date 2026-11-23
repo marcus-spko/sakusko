@@ -5,6 +5,7 @@ import { HRMAX, HRMAX_ORDER, hrmax, hrmaxApplies, acsmZones, karvonen, LIMITS, r
   siri, jp3Men, jpw3Women, dwRow, dwDensity, hastutiAbd, ffmFrom, targetWeight, endomorphy, mesomorphy, hwr, ectomorphy, somatoXY, somatoCategory,
   sweatLoss, sweatRate, bmChangePct, lsiDist, lsiTime, hqRatio, bmiForAgeZ, imtuCat, bfaLms, lmsValue, CHILD_AGE, SOS_MIN_W } from './formulas.js';
 import { TESTS, REF, RM_INFO } from './tests.js';
+import { tkpnComposite, TKPN_CAT } from './tests3.js';
 import { M48_REF, M4_FIELDS, M8_FIELDS, M48_T } from './m48.js';
 import { M510_REF, SITES, EQS, EQ_ORDER, SOMATO_SITES, M10_FIELDS, M510_T, GUIDE, GUIDE_GENERAL, GUIDE_SRC, SOMATO_CAT } from './m510.js';
 import { NYPR, nyprSvg, NYPR_REF } from './nypr.js';
@@ -1249,11 +1250,41 @@ function modOut(mod, s) {
   }
   const def = test.def || DEFKEY[test.id] || 'vo2max';
   const copy = modCopy(mod);
+  const extra = mod === 'm14' ? tkpnCompCard() : '';
   return `<section class="card" aria-labelledby="h-res">
       <div class="lbl-row"><h2 class="h2" id="h-res">${esc(head(s.res))}</h2>${ibtn(def, head(s.res))}</div>
       ${body}
       ${test.caveat ? `<div class="note">${svg('alert', '#9A3412')}<span>${esc(test.caveat[lang])}</span></div>` : ''}
-    </section>${copyCard(copy)}`;
+    </section>${extra}${copyCard(copy)}`;
+}
+// ----- Modul 14: skor gabungan TKPN 2024 (PACER 85%, squat thrust 5%, sit up 5%, V-sit 5%) -----
+const TKPN_ORDER = [['tkpacer', 'pacer', 0.85], ['tksquat', 'squat', 0.05], ['tksitup', 'situp', 0.05], ['tkvsit', 'vsit', 0.05]];
+function tkpnCompState() {
+  const items = TKPN_ORDER.map(([id, key, w]) => { const t = TESTS.m14.find(x => x.id === id), e = evalTest('m14', t); return { id, key, w, name: t.name[lang], res: e.res, cat: e.res ? e.res.cat : undefined }; });
+  const done = items.filter(x => x.res).length, sure = items.every(x => x.res && Number.isInteger(x.cat));
+  const r = sure ? tkpnComposite(Object.fromEntries(items.map(x => [x.key, x.cat]))) : null;
+  return { items, done, sure, r };
+}
+function tkpnCompCard() {
+  const st = tkpnCompState(), C = TKPN_CAT[lang], id = lang === 'id';
+  let inner;
+  if (st.done < 4) inner = emptyP(id ? `Isi keempat tes (PACER, squat thrust, sit up, V sit and reach) untuk menghitung skor gabungan. Sudah terisi: ${st.done} dari 4.` : `Enter all four tests (PACER, squat thrust, sit-up, V sit and reach) to calculate the overall score. Done: ${st.done} of 4.`);
+  else if (!st.sure) {
+    const bad = st.items.filter(x => !Number.isInteger(x.cat)).map(x => x.name).join(', ');
+    inner = `<div class="note">${svg('alert', '#9A3412')}<span>${esc(id ? `Skor gabungan tidak dihitung karena kategori tes berikut tidak pasti (usia di luar norma, celah, tumpang tindih, atau baris norma diragukan): ${bad}.` : `The overall score is not calculated because these tests have no definite category (age outside norms, gap, overlap or doubtful norm row): ${bad}.`)}</span></div>`;
+  } else {
+    const rows = st.items.map(x => kvRow(`${x.name} (${Math.round(x.w * 100)}%)`, `${C[x.cat]} · ${x.cat + 1}`)).join('');
+    const catTxt = st.r.gap ? (id ? `di antara ${C[st.r.gap[0]]} dan ${C[st.r.gap[1]]} (celah di tabel kategori)` : `between ${C[st.r.gap[0]]} and ${C[st.r.gap[1]]} (gap in the category table)`) : C[st.r.k];
+    inner = `<div class="big"><b>${num(st.r.total, 2)}</b><span>${id ? 'dari 5' : 'of 5'}</span></div>${kvRow(id ? 'Kategori kebugaran' : 'Fitness category', catTxt)}${rows}
+      ${st.r.gap ? `<div class="note">${svg('alert', '#9A3412')}<span>${esc(id ? 'Nilai ini jatuh di antara dua rentang kategori pedoman (1–1,8 dan 1,9–2,6); kategori tidak ditebak.' : 'This value falls between two guideline category ranges (1–1.8 and 1.9–2.6); the category is not guessed.')}</span></div>` : ''}
+      <span class="hint">${esc(id ? 'Rumus Pedoman TKPN 2024: skor tiap tes 1 (Kurang sekali) s.d. 5 (Baik sekali); total = 0,85 × PACER + 0,05 × (squat thrust + sit up + V-sit). Kategori: 4,3–5 Baik sekali; 3,5–4,2 Baik; 2,7–3,4 Cukup; 1,9–2,6 Kurang; 1–1,8 Kurang sekali. Bobot PACER 85% membuat skor gabungan hampir sepenuhnya ditentukan oleh PACER.' : 'TKPN 2024 formula: score per test 1 (Very poor) to 5 (Very good); total = 0.85 × PACER + 0.05 × (squat thrust + sit-up + V-sit). Categories: 4.3–5 Very good; 3.5–4.2 Good; 2.7–3.4 Fair; 1.9–2.6 Poor; 1–1.8 Very poor. The 85% PACER weight means the overall score is driven almost entirely by PACER.')}</span>`;
+  }
+  return card('h-tkc', id ? 'Skor gabungan TKPN 2024' : 'TKPN 2024 overall score', 'tkpn', inner);
+}
+function tkpnCompCopy() {
+  const st = tkpnCompState(); if (!st.sure) return null; const C = TKPN_CAT[lang];
+  const cat = st.r.gap ? (lang === 'id' ? `di antara ${C[st.r.gap[0]]} dan ${C[st.r.gap[1]]}` : `between ${C[st.r.gap[0]]} and ${C[st.r.gap[1]]}`) : C[st.r.k];
+  return lang === 'id' ? `Skor gabungan TKPN 2024: ${num(st.r.total, 2)} dari 5 — ${cat}` : `TKPN 2024 overall score: ${num(st.r.total, 2)} of 5 — ${cat}`;
 }
 
 function copyCard(copy) {
@@ -1274,8 +1305,9 @@ function modCopy(mod) {
     if (!e.res) continue;
     if (test.special === 'rm') { const l = rmCopyLines(e.res); if (!l.length) continue; lines.push(...l); }
     else lines.push(e.res.copy);
-    shorts.push(test.short);
+    shorts.push(e.res.src || test.short);   // src: sumber tambahan khusus hasil ini (mis. Tomkinson bila persentil ditampilkan)
   }
+  if (mod === 'm14') { const cl = tkpnCompCopy(); if (cl) lines.push(cl); }
   if (!lines.length) return null;
   const body = [...lines, t().srcLine([...new Set(shorts.join('; ').split('; '))].join('; '))];
   const M = MODULES.find(m => m.id === mod);

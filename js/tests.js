@@ -4,6 +4,8 @@ import {
   vo2Cooper, vo2Rockport, legerSpeed, vo2Leger, vo2Queens,
   vo2YoYo1, sixMwtPred, rmEpley, rmBrzycki, gripCut, stsCut,
 } from './formulas.js';
+import { TOMK_SPEED, tomkCentile } from './tomkinson.js';
+const TQ = { id: ['sangat rendah', 'rendah', 'sedang', 'tinggi', 'sangat tinggi'], en: ['very low', 'low', 'moderate', 'high', 'very high'] };
 
 const VO2U = { id: 'mL/kg/mnt', en: 'mL/kg/min' };
 const minSecFields = (minLim) => [
@@ -65,19 +67,22 @@ export const TESTS = {
     },
     {
       id: 'leger', short: 'Léger 1988', name: { id: 'Shuttle run 20 m (Léger)', en: '20 m shuttle run (Léger)' }, needs: ['age'],
-      fields: [{ k: 'stage', label: { id: 'Tahap terakhir', en: 'Last stage' }, unit: { id: 'tahap', en: 'stage' }, lim: [1, 21], req: true, int: true,
-        hint: { id: 'Protokol Léger 1988: tahap 1 = 8,5 km/jam, naik 0,5 km/jam tiap tahap.', en: 'Léger 1988 protocol: stage 1 = 8.5 km/h, +0.5 km/h per stage.' } }],
+      fields: [{ k: 'stage', label: { id: 'Tahap terakhir yang selesai penuh', en: 'Last fully completed stage' }, unit: { id: 'tahap', en: 'stage' }, lim: [1, 21], req: true, int: true,
+        hint: { id: 'Protokol Léger 1988: tahap 1 = 8,5 km/jam, naik 0,5 km/jam tiap tahap. Persamaan memakai kecepatan tahap terakhir yang diselesaikan, bukan tahap tempat peserta berhenti.', en: 'Léger 1988 protocol: stage 1 = 8.5 km/h, +0.5 km/h per stage. The equation uses the speed of the last completed stage, not the stage at which the runner stopped.' } }],
       protocol: { id: 'Lari bolak-balik 20 m mengikuti bunyi; berhenti saat dua kali gagal mencapai garis tepat waktu.', en: 'Run back and forth over 20 m to the beeps; stop after failing twice to reach the line in time.' },
       pop: { id: '188 anak usia 8–19 tahun; dewasa 18–50 tahun memakai persamaan yang sama dengan usia tetap 18 (r = 0,90)', en: '188 children aged 8–19; adults 18–50 use the same equation with age fixed at 18 (r = 0.90)' }, ageRange: [8, 50],
-      refs: ['leger'],
-      caveat: { id: 'Versi beep test lain dapat memakai tabel kecepatan berbeda; pastikan protokol Léger 1988.', en: 'Other beep-test versions may use different speed tables; make sure the Léger 1988 protocol was used.' },
+      refs: ['leger', 'tomk17', 'buchan19'],
+      caveat: { id: 'Versi beep test lain dapat memakai tabel kecepatan berbeda; pastikan protokol Léger 1988. Untuk usia 9–17 tahun ditampilkan persentil internasional Tomkinson 2017 (dibakukan ke protokol yang sama): norma, bukan ambang kesehatan; data berpusat di tahun 2000 dan sebagian besar dari negara berpenghasilan tinggi.', en: 'Other beep-test versions may use different speed tables; make sure the Léger 1988 protocol was used. For ages 9–17 the Tomkinson 2017 international centile is shown (standardised to the same protocol): a norm, not a health cut-off; data centre on the year 2000 and come mostly from high-income countries.' },
       calc(v, b, c) {
-        const s = legerSpeed(v.stage), A = b.age < 18 ? b.age : 18, r = vo2Leger(v.stage, b.age), fa = c.fa(A);
-        return { val: r, rows: [[c.L === 'id' ? 'Kecepatan akhir' : 'Final speed', `${c.f1(s)} ${c.L === 'id' ? 'km/jam' : 'km/h'}`]],
+        const s = legerSpeed(v.stage), A = b.age < 18 ? Math.floor(b.age) : 18, r = vo2Leger(v.stage, b.age), fa = c.fa(A);
+        const tk = b.sex ? tomkCentile(TOMK_SPEED, b.sex === 'M', b.age, s) : null, tkTxt = tk ? `${tk.band} (${TQ[c.L][tk.q]})` : '';
+        return { val: r, rows: [[c.L === 'id' ? 'Kecepatan akhir' : 'Final speed', `${c.f1(s)} ${c.L === 'id' ? 'km/jam' : 'km/h'}`],
+          ...(tk ? [[c.L === 'id' ? 'Persentil internasional (Tomkinson 2017)' : 'International centile (Tomkinson 2017)', tkTxt]] : [])],
           f: [c.L === 'id' ? 'Kecepatan = 8 + 0,5 × tahap (km/jam)' : 'Speed = 8 + 0.5 × stage (km/h)',
-            c.L === 'id' ? 'VO₂max = 31,025 + 3,238×V − 3,248×A + 0,1536×A×V' : 'VO₂max = 31.025 + 3.238×V − 3.248×A + 0.1536×A×V', c.L === 'id' ? 'A = usia (tahun) bila <18; dewasa: A ditetapkan 18' : 'A = age (years) if <18; adults: A fixed at 18'],
+            c.L === 'id' ? 'VO₂max = 31,025 + 3,238×V − 3,248×A + 0,1536×A×V' : 'VO₂max = 31.025 + 3.238×V − 3.248×A + 0.1536×A×V', c.L === 'id' ? 'A = usia pada ulang tahun terakhir (tahun penuh) bila <18; dewasa: A ditetapkan 18' : 'A = age at last birthday (whole years) if <18; adults: A fixed at 18',
+            ...(tk ? [c.L === 'id' ? `Tomkinson 2017 (km/jam), ${A} th: P20 ${c.f1(tk.row[2])}, P40 ${c.f1(tk.row[4])}, P60 ${c.f1(tk.row[6])}, P80 ${c.f1(tk.row[8])}` : `Tomkinson 2017 (km/h), ${A} y: P20 ${c.f1(tk.row[2])}, P40 ${c.f1(tk.row[4])}, P60 ${c.f1(tk.row[6])}, P80 ${c.f1(tk.row[8])}`] : [])],
           s: [`V = 8 + ${c.k('0,5')}×${c.f0(v.stage)} = ${c.f1(s)}`, `${c.k('31,025')} + ${c.k('3,238')}×${c.f1(s)} − ${c.k('3,248')}×${fa} + ${c.k('0,1536')}×${fa}×${c.f1(s)} = ${c.f1(r)}`],
-          copy: c.L === 'id' ? `Shuttle run 20 m (Léger): tahap ${c.f0(v.stage)} (${c.f1(s)} km/jam) → VO₂max ${c.f1(r)} ${c.u}` : `20 m shuttle run (Léger): stage ${c.f0(v.stage)} (${c.f1(s)} km/h) → VO₂max ${c.f1(r)} ${c.u}` };
+          copy: c.L === 'id' ? `Shuttle run 20 m (Léger): tahap ${c.f0(v.stage)} (${c.f1(s)} km/jam) → VO₂max ${c.f1(r)} ${c.u}${tk ? `; Tomkinson 2017 ${tkTxt}` : ''}` : `20 m shuttle run (Léger): stage ${c.f0(v.stage)} (${c.f1(s)} km/h) → VO₂max ${c.f1(r)} ${c.u}${tk ? `; Tomkinson 2017 ${tkTxt}` : ''}`, src: tk ? 'Léger 1988; Tomkinson 2017' : undefined };
       },
     },
     {

@@ -58,7 +58,8 @@ export function vo2Rockport(wKg, age, male, tMin, hr) {                         
 }
 export const legerSpeed = stage => 8 + 0.5 * stage;                                  // Léger 1988, km/jam
 export function vo2Leger(stage, age) {                                                // dewasa: usia ditetapkan 18
-  const s = legerSpeed(stage), a = age >= 18 ? 18 : age;
+  // anak: usia pada ulang tahun terakhir (bilangan bulat), sesuai definisi yang dipakai Tomkinson 2017 untuk persamaan ini
+  const s = legerSpeed(stage), a = age >= 18 ? 18 : Math.floor(age);
   return 31.025 + 3.238 * s - 3.248 * a + 0.1536 * a * s;
 }
 export const vo2Queens = (male, hr) => male ? 111.33 - 0.42 * hr : 65.81 - 0.1847 * hr; // McArdle 1972

@@ -6,8 +6,9 @@ import {
   vo2YoYo1, sixMwtPred, lsiDist, lsiTime, hqRatio, siri, jp3Men, jpw3Women, dwDensity, dwRow, hastutiAbd, ffmFrom, targetWeight, endomorphy, mesomorphy, hwr, ectomorphy, somatoXY, somatoCategory, sweatLoss, sweatRate, bmChangePct, rmrTenHaaf, rmrMifflin, rmrCunningham, energyAvail, bmi, bmiCat, centralObese, whtr, whr, whrHigh, rmEpley, rmBrzycki, NUZZO, round05, gripCut, stsCut,
   bmiForAgeZ, imtuCat, bfaLms, lmsValue, LIMITS,
 } from '../js/formulas.js';
-import { tkpnCat, tkpnRow, pacerLevel, TKPN_CAT } from '../js/tests3.js';
-import { TKPN_NORM } from '../js/tkpn-norm.js';
+import { tkpnCat, tkpnRow, pacerLevel, TKPN_CAT, tkpnComposite } from '../js/tests3.js';
+import { TKPN_NORM, TKPN_ED } from '../js/tkpn-norm.js';
+import { TOMK_SPEED, TOMK_LAPS, tomkCentile } from '../js/tomkinson.js';
 import { acsmResult } from '../js/screening.js';
 import { NYPR } from '../js/nypr.js';
 import { SUPPS } from '../js/m79.js';
@@ -215,28 +216,56 @@ check('Kategori Permenkes: −3,01 buruk; −3 kurang; −2 baik; +1 baik; +1,01
 check('Kategori dinilai dari z 2 desimal (+1,004 → gizi baik)', imtuCat(1.004) === 'normal');
 check('Léger anak 12 th tahap 5 = persamaan anak', near(vo2Leger(5, 12), 31.025 + 3.238 * 10.5 - 3.248 * 12 + 0.1536 * 12 * 10.5, 1e-9));
 check('Léger: tes kini butuh usia dan berlaku 8–50 th', (x => x.needs.includes('age') && x.ageRange[0] === 8)(TESTS.m2.find(x => x.id === 'leger')));
-// TKPN
-check('TKPN: 4 tabel × 2 jenis kelamin × 10 baris usia', ['vsit', 'situp', 'squat', 'pacer'].every(k => ['L', 'P'].every(s => TKPN_NORM[k][s].length === 10 && TKPN_NORM[k][s].every(r => r.length === 8))));
-const gaps = [];
-for (const k of ['situp', 'squat', 'pacer']) for (const sx of ['L', 'P']) TKPN_NORM[k][sx].forEach((r, i) => { [[r[0], r[1]], [r[2], r[3]], [r[4], r[5]], [r[6], r[7]]].forEach(([hi, lo], j) => { if (lo !== hi + 1) gaps.push(`${k}${sx}${i + 9}:${j}`); }); });
-check('TKPN: hanya 3 cacat tabel (squat putra 11 th tumpang tindih; PACER putra 13 & 14 th celah 82)', gaps.join() === 'squatL11:2,pacerL13:3,pacerL14:3');
-check('TKPN V-sit: semua batas bersambung (x,9 → x+1)', ['L', 'P'].every(sx => TKPN_NORM.vsit[sx].every(r => r[0] === r[1] && near(r[2] + 0.1, r[3], 1e-9) && near(r[4] + 0.1, r[5], 1e-9) && r[6] === r[7])));
+// TKPN edisi 2024
+check('TKPN memakai edisi 2024; 4 tabel × 2 jenis kelamin × 10 baris usia', TKPN_ED === '2024' && ['vsit', 'situp', 'squat', 'pacer'].every(k => ['L', 'P'].every(s => TKPN_NORM[k][s].length === 10 && TKPN_NORM[k][s].every(r => r.length === 8))));
+const defects = [];
+const AG = ['9', '10', '11', '12', '13', '14', '15', '16', '17', '17+'];
+for (const t of ['vsit', 'situp', 'squat', 'pacer']) for (const sx of ['L', 'P']) AG.forEach((a, i) => {
+  const age = i === 9 ? 18 : 9 + i, step = t === 'vsit' ? 0.05 : 1; let prev = '';
+  for (let x = t === 'vsit' ? -15 : 0; x <= (t === 'vsit' ? 40 : 130) + 1e-9; x = Math.round((x + step) * 100) / 100) {
+    const k = tkpnCat(t, sx === 'L', age, x); const tag = k.suspect ? 'S' : k.gap ? 'G' : k.alt !== undefined ? 'O' : '';
+    if (tag && tag !== prev) defects.push(`${t}${sx}${a}${tag}`); prev = tag;
+  }
+});
+check('TKPN 2024: daftar cacat tabel persis seperti hasil telaah (V-sit putri 9 celah; V-sit putri 10–17+ tumpang tindih; sit up putra 12 diragukan; PACER putra 13–14 tumpang tindih + 2 celah)',
+  defects.join() === 'vsitP9G,vsitP10O,vsitP11O,vsitP12O,vsitP13O,vsitP14O,vsitP15O,vsitP16O,vsitP17O,vsitP17+O,situpL12S,pacerL13O,pacerL13G,pacerL13G,pacerL14O,pacerL14G,pacerL14G');
 check('TKPN baris: 8,9 th tidak ada; 9 → 0; 17,9 → 8; 18,5 → 9 (17+); 19 → tidak ada', tkpnRow(8.9) === -1 && tkpnRow(9) === 0 && tkpnRow(17.9) === 8 && tkpnRow(18.5) === 9 && tkpnRow(19) === -1);
-check('Squat thrust putra 11 th, 10 kali → Cukup atau Baik (tumpang tindih)', (r => r.k === 2 && r.alt === 3)(tkpnCat('squat', true, 11.4, 10)));
-check('PACER putra 13 th, 82 balikan → celah Baik–Baik sekali', (r => r.gap && r.gap[0] === 3 && r.gap[1] === 4)(tkpnCat('pacer', true, 13, 82)));
-check('PACER putra 13 th, 81 → Baik; 83 → Baik sekali', tkpnCat('pacer', true, 13, 81).k === 3 && tkpnCat('pacer', true, 13, 83).k === 4);
-check('Sit up putri 15 th: 20 Sangat rendah; 21 Rendah; 56 Baik sekali', tkpnCat('situp', false, 15, 20).k === 0 && tkpnCat('situp', false, 15, 21).k === 1 && tkpnCat('situp', false, 15, 56).k === 4);
-check('V-sit putra 9 th: −6,5 SR; −6 R; 0,95 R; 1 C; 7 Baik; 7,1 Baik sekali', [-6.5, -6, 0.95, 1, 7, 7.1].map(x => tkpnCat('vsit', true, 9, x).k).join() === '0,1,1,2,3,4');
-check('V-sit putri 18 th (baris 17+): 18 Baik, 18,5 Baik sekali', tkpnCat('vsit', false, 18, 18).k === 3 && tkpnCat('vsit', false, 18, 18.5).k === 4);
+check('Squat thrust putra 11 th (2024): 10 kali → Cukup (tumpang tindih edisi 2022 sudah hilang)', (r => r.k === 2 && r.alt === undefined)(tkpnCat('squat', true, 11.4, 10)));
+check('PACER putra 13 th: 45 → tumpang tindih Kurang sekali/Kurang; 55 → celah; 82 → celah; 83 → Baik sekali', (a => a[0].alt === 1 && a[1].gap[0] === 1 && a[2].gap[0] === 3 && a[3].k === 4)([45, 55, 82, 83].map(x => tkpnCat('pacer', true, 13, x))));
+check('Sit up putra 12 th: baris diragukan (identik PACER), pembanding 2022 tersedia', (r => r.suspect && r.suspect.ref2022.length === 8)(tkpnCat('situp', true, 12, 45)));
+check('Sit up putri 15 th: 20 Kurang sekali; 21 Kurang; 56 Baik sekali', tkpnCat('situp', false, 15, 20).k === 0 && tkpnCat('situp', false, 15, 21).k === 1 && tkpnCat('situp', false, 15, 56).k === 4);
+check('V-sit putra 10 th: −7 KS; −6,5 KS; −6 K; 0,95 K; 1 C; 9 Baik sekali', [-7, -6.5, -6, 0.95, 1, 9].map(x => tkpnCat('vsit', true, 10, x).k).join() === '0,0,1,1,2,4');
+check('V-sit putra 11 th: 9,5 cm → Baik (celah ≤1 cm masuk kategori bawah)', tkpnCat('vsit', true, 11, 9.5).k === 3);
+check('V-sit putri 9 th: 0 cm → celah Kurang–Cukup', (r => r.gap && r.gap[0] === 1)(tkpnCat('vsit', false, 9, 0)));
+check('V-sit putri 10 th: 3,5 cm → tumpang tindih', tkpnCat('vsit', false, 10, 3.5).alt === 1);
 check('TKPN usia 8: tanpa norma', tkpnCat('situp', true, 8, 30) === null);
 check('Lembar PACER: 7 → level 1 balikan 7; 8 → level 2 balikan 1; 157 → level 15; 158 → di luar lembar', (a => a[0].level === 1 && a[0].lap === 7 && a[1].level === 2 && a[1].lap === 1 && a[2].level === 15 && a[2].lap === 13 && a[3] === null)([7, 8, 157, 158].map(pacerLevel)));
-const cx3 = { L: 'id', f0: x => x.toFixed(0), f1: x => x.toFixed(1), f2: x => x.toFixed(2), fa: x => String(x), k: x => x };
+check('Skor gabungan 2024: semua Baik (4) → 4,00 Baik; semua Baik sekali → 5 Baik sekali', (a => a[0].total === 4 && a[0].k === 3 && a[1].total === 5 && a[1].k === 4)([3, 4].map(c => tkpnComposite({ pacer: c, squat: c, situp: c, vsit: c }))));
+check('Skor gabungan: PACER Kurang, lainnya Kurang sekali → 1,85 jatuh di celah 1,8–1,9', (r => r.total === 1.85 && r.gap[0] === 0)(tkpnComposite({ pacer: 1, squat: 0, situp: 0, vsit: 0 })));
+let unreach = 0; for (let a = 0; a < 5; a++) for (let b2 = 0; b2 < 5; b2++) for (let c2 = 0; c2 < 5; c2++) for (let d2 = 0; d2 < 5; d2++) { const r = tkpnComposite({ pacer: a, squat: b2, situp: c2, vsit: d2 }); if (r.gap) unreach++; }
+check('Skor gabungan: dari 625 kombinasi, hanya 1 yang jatuh di celah (1,85)', unreach === 1);
+// Tomkinson 2017
+check('Tomkinson: tabel kecepatan & balikan 2 × 9 usia × 11 persentil, naik monoton', [TOMK_SPEED, TOMK_LAPS].every(T => ['M', 'F'].every(sx => T[sx].length === 9 && T[sx].every(r => r.length === 11 && r.every((v, i) => i === 0 || v >= r[i - 1])))));
+let vbad = 0;
+const T4M9 = [41.7, 43.1, 44.8, 46.1, 47.1, 48.1, 49.1, 50.2, 51.5, 53.2, 54.6], T4F17 = [24.7, 26.8, 29.3, 31.1, 32.6, 34.1, 35.5, 37.0, 38.8, 41.3, 43.3];
+TOMK_SPEED.M[0].forEach((sp, i) => { if (Math.abs((31.025 + 3.238 * sp - 3.248 * 9 + 0.1536 * 9 * sp) - T4M9[i]) > 0.08) vbad++; });
+TOMK_SPEED.F[8].forEach((sp, i) => { if (Math.abs((31.025 + 3.238 * sp - 3.248 * 17 + 0.1536 * 17 * sp) - T4F17[i]) > 0.08) vbad++; });
+check('Tomkinson Tabel 4 (VO₂peak) = persamaan Léger dari Tabel 1 dengan usia bulat, selisih <0,08 (pembulatan) (putra 9 & putri 17 th, 22 sel)', vbad === 0);
+check('Léger memakai usia pada ulang tahun terakhir: 12,9 th = 12 th', vo2Leger(5, 12.9) === vo2Leger(5, 12));
+check('Tomkinson balikan putra 13 th: 44 → P50–P60 sedang; 10 → <P5; 84 → ≥P95', (a => a[0].band === 'P50–P60' && a[0].q === 2 && a[1].band === '<P5' && a[2].band === '≥P95' && a[2].q === 4)([44, 10, 84].map(x => tomkCentile(TOMK_LAPS, true, 13.6, x))));
+check('Tomkinson kecepatan putri 9 th: 9,13 km/jam = P20 → rendah', (r => r.q === 1 && r.band === 'P20–P30')(tomkCentile(TOMK_SPEED, false, 9, 9.13)));
+check('Tomkinson di luar 9–17 th: tidak ada', tomkCentile(TOMK_LAPS, true, 18, 50) === null && tomkCentile(TOMK_LAPS, true, 8.9, 50) === null);
+const cx3 = { L: 'id', f0: x => x.toFixed(0), f1: x => x.toFixed(1), f2: x => x.toFixed(2), fa: x => String(x), k: x => x, u: 'mL/kg/mnt' };
 const T14 = id => TESTS.m14.find(x => x.id === id);
 check('Modul 14: rujukan ada di REF', TESTS.m14.every(x => x.refs.every(r => REF[r])));
-check('Modul 14 sit up putra 12 th 45 kali → Baik', T14('tksitup').calc({ n: 45 }, { age: 12, sex: 'M' }, cx3).copy.endsWith('— Baik'));
-check('Modul 14 V-sit putri 10 th −2 cm → Sangat rendah, nilai negatif', (r => r.val === -2 && r.copy.includes('Sangat rendah'))(T14('tkvsit').calc({ d: 2, side: 2 }, { age: 10, sex: 'F' }, cx3)));
-check('Modul 14 PACER putra 14 th 82 → peringatan celah tabel', T14('tkpacer').calc({ n: 82 }, { age: 14, sex: 'M' }, cx3).flag.level === 'warn');
+check('Modul 14 sit up putra 13 th 47 kali → Baik', T14('tksitup').calc({ n: 47 }, { age: 13, sex: 'M' }, cx3).copy.endsWith('— Baik'));
+check('Modul 14 sit up putra 12 th → kategori tidak ditampilkan + peringatan', (r => r.cat === null && r.flag.level === 'warn' && r.copy.includes('tidak ditampilkan'))(T14('tksitup').calc({ n: 45 }, { age: 12, sex: 'M' }, cx3)));
+check('Modul 14 V-sit putri 10 th −2 cm → Kurang sekali, nilai negatif', (r => r.val === -2 && r.copy.includes('Kurang sekali') && r.cat === 0)(T14('tkvsit').calc({ d: 2, side: 2 }, { age: 10, sex: 'F' }, cx3)));
+check('Modul 14 PACER putra 14 th 82 → peringatan celah + persentil Tomkinson', (r => r.flag.level === 'warn' && r.copy.includes('Tomkinson 2017 P90–P95 (sangat tinggi)'))(T14('tkpacer').calc({ n: 82 }, { age: 14, sex: 'M' }, cx3)));
 check('Modul 14 squat putra 20 th → tanpa kategori', T14('tksquat').calc({ n: 15 }, { age: 20, sex: 'M' }, cx3).copy.includes('tanpa kategori'));
+const lg = TESTS.m2.find(x => x.id === 'leger');
+check('Léger putra 12,4 th tahap 5 → 10,5 km/jam: P50 10,47 ≤ 10,5 < P60 10,75 → P50–P60 sedang', (r => r.copy.includes('Tomkinson 2017 P50–P60 (sedang)'))(lg.calc({ stage: 5 }, { age: 12.4, sex: 'M' }, cx3)));
+check('Léger dewasa 30 th: tanpa persentil Tomkinson', !lg.calc({ stage: 10 }, { age: 30, sex: 'M' }, cx3).copy.includes('Tomkinson'));
 check('Label kategori TKPN 5 tingkat ID/EN', TKPN_CAT.id.length === 5 && TKPN_CAT.en.length === 5);
 
 console.log(`\n${n} pemeriksaan lulus.`);
