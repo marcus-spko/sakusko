@@ -1,6 +1,6 @@
 // SakuSKO service worker — menyimpan semua file aplikasi di HP supaya bisa dipakai tanpa sinyal.
 // Naikkan VERSION setiap ada pembaruan supaya HP mengunduh versi baru.
-const VERSION = 'sakusko-v0.1.21';
+const VERSION = 'sakusko-v0.1.22';
 const FILES = [
   './',
   './index.html',
@@ -12,6 +12,9 @@ const FILES = [
   './js/session.js',
   './js/tests.js',
   './js/tests2.js',
+  './js/tests3.js',
+  './js/tkpn-norm.js',
+  './js/who2007.js',
   './js/titlecase.js',
   './js/screening.js',
   './js/m48.js',

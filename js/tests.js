@@ -35,7 +35,7 @@ export const REF = {
 export const TESTS = {
   m2: [
     {
-      id: 'cooper', short: 'Cooper 1968', name: { id: 'Lari 12 menit (Cooper)', en: '12-minute run (Cooper)' }, needs: [],
+      id: 'cooper', adult: true, short: 'Cooper 1968', name: { id: 'Lari 12 menit (Cooper)', en: '12-minute run (Cooper)' }, needs: [],
       fields: [{ k: 'dist', label: { id: 'Jarak tempuh', en: 'Distance covered' }, unit: { id: 'm', en: 'm' }, lim: [500, 5000], req: true }],
       protocol: { id: 'Lari/jalan sejauh mungkin selama 12 menit di lintasan terukur; usaha maksimal.', en: 'Run/walk as far as possible in 12 minutes on a measured track; maximal effort.' },
       pop: { id: 'Pria dewasa anggota Angkatan Udara AS', en: 'Adult men in the US Air Force' },
@@ -43,7 +43,7 @@ export const TESTS = {
       caveat: { id: 'Butuh usaha maksimal; tidak cocok untuk pemula berisiko tinggi.', en: 'Requires maximal effort; not suitable for high-risk beginners.' },
       calc(v, b, c) {
         const r = vo2Cooper(v.dist);
-        return { val: r, f: ['VO₂max = (jarak − 504,9) / 44,73'], s: [`(${c.f0(v.dist)} − 504,9) / 44,73 = ${c.f1(r)}`],
+        return { val: r, f: [c.L === 'id' ? 'VO₂max = (jarak − 504,9) / 44,73' : 'VO₂max = (distance − 504.9) / 44.73'], s: [`(${c.f0(v.dist)} − ${c.k('504,9')}) / ${c.k('44,73')} = ${c.f1(r)}`],
           copy: c.L === 'id' ? `Lari 12 menit (Cooper): ${c.f0(v.dist)} m → VO₂max ${c.f1(r)} ${c.u}` : `12-min run (Cooper): ${c.f0(v.dist)} m → VO₂max ${c.f1(r)} ${c.u}` };
       },
     },
@@ -59,29 +59,29 @@ export const TESTS = {
         return { val: r,
           f: [c.L === 'id' ? 'VO₂max = 132,853 − 0,0769×BB(lb) − 0,3877×usia + 6,315×JK − 3,2649×waktu − 0,1565×denyut' : 'VO₂max = 132.853 − 0.0769×mass(lb) − 0.3877×age + 6.315×sex − 3.2649×time − 0.1565×HR',
             c.L === 'id' ? 'JK: pria = 1, wanita = 0; waktu dalam menit desimal; 1 kg = 2,20462 lb' : 'Sex: male = 1, female = 0; time in decimal minutes; 1 kg = 2.20462 lb'],
-          s: [`132,853 − 0,0769×${c.f1(lb)} − 0,3877×${c.f0(b.age)} + 6,315×${male ? 1 : 0} − 3,2649×${c.f2(t)} − 0,1565×${c.f0(v.hr)} = ${c.f1(r)}`],
+          s: [`${c.k('132,853')} − ${c.k('0,0769')}×${c.f1(lb)} − ${c.k('0,3877')}×${c.fa(b.age)} + ${c.k('6,315')}×${male ? 1 : 0} − ${c.k('3,2649')}×${c.f2(t)} − ${c.k('0,1565')}×${c.f0(v.hr)} = ${c.f1(r)}`],
           copy: c.L === 'id' ? `Jalan 1 mil (Rockport): ${mmss(v)} menit, denyut ${c.f0(v.hr)} → VO₂max ${c.f1(r)} ${c.u}` : `1-mile walk (Rockport): ${mmss(v)} min, HR ${c.f0(v.hr)} → VO₂max ${c.f1(r)} ${c.u}` };
       },
     },
     {
-      id: 'leger', short: 'Léger 1988', name: { id: 'Shuttle run 20 m (Léger)', en: '20 m shuttle run (Léger)' }, needs: [],
+      id: 'leger', short: 'Léger 1988', name: { id: 'Shuttle run 20 m (Léger)', en: '20 m shuttle run (Léger)' }, needs: ['age'],
       fields: [{ k: 'stage', label: { id: 'Tahap terakhir', en: 'Last stage' }, unit: { id: 'tahap', en: 'stage' }, lim: [1, 21], req: true, int: true,
         hint: { id: 'Protokol Léger 1988: tahap 1 = 8,5 km/jam, naik 0,5 km/jam tiap tahap.', en: 'Léger 1988 protocol: stage 1 = 8.5 km/h, +0.5 km/h per stage.' } }],
       protocol: { id: 'Lari bolak-balik 20 m mengikuti bunyi; berhenti saat dua kali gagal mencapai garis tepat waktu.', en: 'Run back and forth over 20 m to the beeps; stop after failing twice to reach the line in time.' },
-      pop: { id: '188 anak usia 8–19 tahun; dewasa 18–50 tahun memakai persamaan yang sama dengan usia tetap 18 (r = 0,90)', en: '188 children aged 8–19; adults 18–50 use the same equation with age fixed at 18 (r = 0.90)' }, ageRange: [18, 50],
+      pop: { id: '188 anak usia 8–19 tahun; dewasa 18–50 tahun memakai persamaan yang sama dengan usia tetap 18 (r = 0,90)', en: '188 children aged 8–19; adults 18–50 use the same equation with age fixed at 18 (r = 0.90)' }, ageRange: [8, 50],
       refs: ['leger'],
       caveat: { id: 'Versi beep test lain dapat memakai tabel kecepatan berbeda; pastikan protokol Léger 1988.', en: 'Other beep-test versions may use different speed tables; make sure the Léger 1988 protocol was used.' },
       calc(v, b, c) {
-        const s = legerSpeed(v.stage), r = vo2Leger(v.stage, 18);
+        const s = legerSpeed(v.stage), A = b.age < 18 ? b.age : 18, r = vo2Leger(v.stage, b.age), fa = c.fa(A);
         return { val: r, rows: [[c.L === 'id' ? 'Kecepatan akhir' : 'Final speed', `${c.f1(s)} ${c.L === 'id' ? 'km/jam' : 'km/h'}`]],
           f: [c.L === 'id' ? 'Kecepatan = 8 + 0,5 × tahap (km/jam)' : 'Speed = 8 + 0.5 × stage (km/h)',
-            'VO₂max = 31,025 + 3,238×V − 3,248×A + 0,1536×A×V', c.L === 'id' ? 'Dewasa: A (usia) ditetapkan 18' : 'Adults: A (age) fixed at 18'],
-          s: [`V = 8 + 0,5×${c.f0(v.stage)} = ${c.f1(s)}`, `31,025 + 3,238×${c.f1(s)} − 3,248×18 + 0,1536×18×${c.f1(s)} = ${c.f1(r)}`],
+            c.L === 'id' ? 'VO₂max = 31,025 + 3,238×V − 3,248×A + 0,1536×A×V' : 'VO₂max = 31.025 + 3.238×V − 3.248×A + 0.1536×A×V', c.L === 'id' ? 'A = usia (tahun) bila <18; dewasa: A ditetapkan 18' : 'A = age (years) if <18; adults: A fixed at 18'],
+          s: [`V = 8 + ${c.k('0,5')}×${c.f0(v.stage)} = ${c.f1(s)}`, `${c.k('31,025')} + ${c.k('3,238')}×${c.f1(s)} − ${c.k('3,248')}×${fa} + ${c.k('0,1536')}×${fa}×${c.f1(s)} = ${c.f1(r)}`],
           copy: c.L === 'id' ? `Shuttle run 20 m (Léger): tahap ${c.f0(v.stage)} (${c.f1(s)} km/jam) → VO₂max ${c.f1(r)} ${c.u}` : `20 m shuttle run (Léger): stage ${c.f0(v.stage)} (${c.f1(s)} km/h) → VO₂max ${c.f1(r)} ${c.u}` };
       },
     },
     {
-      id: 'queens', short: 'McArdle 1972', name: { id: 'Step test Queens College', en: 'Queens College step test' }, needs: ['sex'],
+      id: 'queens', adult: true, short: 'McArdle 1972', name: { id: 'Step test Queens College', en: 'Queens College step test' }, needs: ['sex'],
       fields: [{ k: 'c15', label: { id: 'Hitungan nadi 15 detik', en: '15-second pulse count' }, unit: { id: 'denyut', en: 'beats' }, lim: [10, 60], req: true,
         hint: { id: 'Mulai 5 detik setelah berhenti melangkah; aplikasi mengalikan 4.', en: 'Start 5 seconds after stepping stops; the app multiplies by 4.' } }],
       protocol: { id: 'Bangku 41,3 cm; 3 menit; pria 24 langkah/menit (metronom 96), wanita 22 langkah/menit (metronom 88).', en: 'Bench 41.3 cm; 3 minutes; men 24 steps/min (metronome 96), women 22 steps/min (metronome 88).' },
@@ -90,13 +90,13 @@ export const TESTS = {
       calc(v, b, c) {
         const hr = v.c15 * 4, male = b.sex === 'M', r = vo2Queens(male, hr);
         return { val: r, rows: [[c.L === 'id' ? 'Denyut pemulihan' : 'Recovery HR', `${c.f0(hr)} ${c.L === 'id' ? 'kali/mnt' : 'bpm'}`]],
-          f: [c.L === 'id' ? 'Pria: VO₂max = 111,33 − 0,42 × HR' : 'Men: VO₂max = 111.33 − 0.42 × HR', c.L === 'id' ? 'Wanita: VO₂max = 65,81 − 0,1847 × HR' : 'Women: VO₂max = 65.81 − 0.1847 × HR', 'HR = hitungan 15 dtk × 4'],
-          s: [`HR = ${c.f0(v.c15)} × 4 = ${c.f0(hr)}`, male ? `111,33 − 0,42 × ${c.f0(hr)} = ${c.f1(r)}` : `65,81 − 0,1847 × ${c.f0(hr)} = ${c.f1(r)}`],
+          f: [c.L === 'id' ? 'Pria: VO₂max = 111,33 − 0,42 × HR' : 'Men: VO₂max = 111.33 − 0.42 × HR', c.L === 'id' ? 'Wanita: VO₂max = 65,81 − 0,1847 × HR' : 'Women: VO₂max = 65.81 − 0.1847 × HR', c.L === 'id' ? 'HR = hitungan 15 dtk × 4' : 'HR = 15-s count × 4'],
+          s: [`HR = ${c.f0(v.c15)} × 4 = ${c.f0(hr)}`, male ? `${c.k('111,33')} − ${c.k('0,42')} × ${c.f0(hr)} = ${c.f1(r)}` : `${c.k('65,81')} − ${c.k('0,1847')} × ${c.f0(hr)} = ${c.f1(r)}`],
           copy: c.L === 'id' ? `Step test Queens College: HR pemulihan ${c.f0(hr)} → VO₂max ${c.f1(r)} ${c.u}` : `Queens College step test: recovery HR ${c.f0(hr)} → VO₂max ${c.f1(r)} ${c.u}` };
       },
     },
     {
-      id: 'yoyo', short: 'Bangsbo 2008', name: { id: 'Yo-Yo IR1', en: 'Yo-Yo IR1' }, needs: [],
+      id: 'yoyo', adult: true, short: 'Bangsbo 2008', name: { id: 'Yo-Yo IR1', en: 'Yo-Yo IR1' }, needs: [],
       fields: [{ k: 'dist', label: { id: 'Jarak total', en: 'Total distance' }, unit: { id: 'm', en: 'm' }, lim: [40, 5000], req: true }],
       protocol: { id: 'Lari bolak-balik 2 × 20 m dengan kecepatan naik, diselingi 10 detik pemulihan aktif; catat jarak total saat berhenti.', en: '2 × 20 m shuttles at rising speed with 10 s active recovery; record total distance at the end.' },
       pop: { id: 'Persamaan Yo-Yo IR1 dalam ulasan Bangsbo dkk. 2008', en: 'Yo-Yo IR1 equation reported in the Bangsbo et al. 2008 review' },
@@ -104,7 +104,7 @@ export const TESTS = {
       caveat: { id: 'Hanya untuk level 1 (IR1), bukan IR2.', en: 'Level 1 (IR1) only, not IR2.' },
       calc(v, b, c) {
         const r = vo2YoYo1(v.dist);
-        return { val: r, f: [c.L === 'id' ? 'VO₂max = jarak (m) × 0,0084 + 36,4' : 'VO₂max = distance (m) × 0.0084 + 36.4'], s: [`${c.f0(v.dist)} × 0,0084 + 36,4 = ${c.f1(r)}`],
+        return { val: r, f: [c.L === 'id' ? 'VO₂max = jarak (m) × 0,0084 + 36,4' : 'VO₂max = distance (m) × 0.0084 + 36.4'], s: [`${c.f0(v.dist)} × ${c.k('0,0084')} + ${c.k('36,4')} = ${c.f1(r)}`],
           copy: `Yo-Yo IR1: ${c.f0(v.dist)} m → VO₂max ${c.f1(r)} ${c.u}` };
       },
     },
@@ -123,7 +123,7 @@ export const TESTS = {
       },
     },
     {
-      id: 'smwt', short: 'Enright 1998', name: { id: 'Jalan 6 menit (6MWT)', en: '6-minute walk (6MWT)' }, needs: ['age', 'sex', 'weight', 'height'], noVo2: true,
+      id: 'smwt', adult: true, short: 'Enright 1998', name: { id: 'Jalan 6 menit (6MWT)', en: '6-minute walk (6MWT)' }, needs: ['age', 'sex', 'weight', 'height'], noVo2: true,
       fields: [{ k: 'dist', label: { id: 'Jarak tempuh', en: 'Distance walked' }, unit: { id: 'm', en: 'm' }, lim: [50, 1000], req: true }],
       protocol: { id: 'Jalan secepat mungkin selama 6 menit di lorong datar 30 m; boleh berhenti istirahat.', en: 'Walk as far as possible in 6 minutes along a flat 30 m corridor; resting is allowed.' },
       pop: { id: 'Dewasa sehat usia 40–80 tahun; mengukur kapasitas fungsional, bukan VO₂max', en: 'Healthy adults aged 40–80; measures functional capacity, not VO₂max' },
@@ -139,7 +139,7 @@ export const TESTS = {
         const male = b.sex === 'M', p = sixMwtPred(male, b.age, b.height, b.weight), pct = v.dist / p * 100;
         return { ...base, val: v.dist,
           rows: [[c.L === 'id' ? 'Prediksi' : 'Predicted', `${c.f0(p)} m`], [c.L === 'id' ? '% prediksi' : '% predicted', `${c.f0(pct)}%`]],
-          s: [male ? `7,57×${c.f1(b.height)} − 5,02×${c.f0(b.age)} − 1,76×${c.f1(b.weight)} − 309 = ${c.f0(p)}` : `2,11×${c.f1(b.height)} − 2,29×${c.f1(b.weight)} − 5,78×${c.f0(b.age)} + 667 = ${c.f0(p)}`,
+          s: [male ? `${c.k('7,57')}×${c.f1(b.height)} − ${c.k('5,02')}×${c.fa(b.age)} − ${c.k('1,76')}×${c.f1(b.weight)} − 309 = ${c.f0(p)}` : `${c.k('2,11')}×${c.f1(b.height)} − ${c.k('2,29')}×${c.f1(b.weight)} − ${c.k('5,78')}×${c.fa(b.age)} + 667 = ${c.f0(p)}`,
             `${c.f0(v.dist)} / ${c.f0(p)} × 100 = ${c.f0(pct)}%`],
           copy: c.L === 'id' ? `6MWT: ${c.f0(v.dist)} m = ${c.f0(pct)}% prediksi (${c.f0(p)} m)` : `6MWT: ${c.f0(v.dist)} m = ${c.f0(pct)}% predicted (${c.f0(p)} m)` };
       },
@@ -222,3 +222,7 @@ export const RM_INFO = {
 import { TESTS2, REF2 } from './tests2.js';
 Object.assign(TESTS, TESTS2);
 Object.assign(REF, REF2);
+// v0.2 Tahap 3 — Modul 14 TKPN
+import { TESTS3, REF3 } from './tests3.js';
+Object.assign(TESTS, TESTS3);
+Object.assign(REF, REF3);

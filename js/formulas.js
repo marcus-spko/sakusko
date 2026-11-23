@@ -40,13 +40,16 @@ export function acsmZones(hrMax, hrRest) {
 }
 
 // Batas isian yang masuk akal (validasi)
+// v0.2 Tahap 3: usia dibuka mulai 5 tahun (mode anak & remaja <18 th); BB dan TB diturunkan agar anak usia 5–7 tahun tetap bisa diisi
 export const LIMITS = {
-  age: [18, 100],
+  age: [5, 100],
   hrRest: [30, 120],
   hrMeasured: [100, 230],
-  weight: [20, 300],
-  height: [100, 250],
+  weight: [10, 300],
+  height: [80, 250],
 };
+export const CHILD_AGE = 18;           // usia < 18 th = mode anak & remaja
+export const SOS_MIN_W = 20;           // kalkulator dosis Darurat tetap mulai 20 kg (batas lama; belum ditelaah untuk BB lebih kecil)
 
 // ================= Modul 2 — VO₂max lapangan (mL/kg/menit) =================
 export const vo2Cooper = d => (d - 504.9) / 44.73;                                   // Cooper 1968
@@ -184,3 +187,33 @@ export const fourStage = t => {
 // COD deficit (dtk) = waktu 505 − waktu sprint 10 m (Nimphius 2016)
 export const codDeficit = (t505, t10) => t505 - t10;
 export const meanOf = a => { const x = a.filter(Number.isFinite); return x.length ? x.reduce((p, q) => p + q, 0) / x.length : NaN; };
+
+// ===== v0.2 Tahap 3: mode anak & remaja =====
+import { BFA_LMS } from './who2007.js';
+// IMT/U WHO 2007: z = ((IMT/M)^L − 1)/(L·S), parameter LMS diinterpolasi linear antarbulan; di luar ±3 SD memakai koreksi WHO
+// (z = 3 + (IMT − SD3)/(SD3 − SD2), cermin untuk sisi negatif). Diuji cocok 919/919 dengan keluaran WHO AnthroPlus.
+export function bfaLms(ageMo, male) {
+  const T = BFA_LMS[male ? 'M' : 'F'], i = Math.floor(ageMo) - BFA_LMS.start, d = ageMo - Math.floor(ageMo);
+  if (!(ageMo >= 60 && ageMo < 229) || !T[i]) return null;
+  let [l, m, s] = T[i];
+  if (d > 0 && T[i + 1]) { const u = T[i + 1]; l += d * (u[0] - l); m += d * (u[1] - m); s += d * (u[2] - s); }
+  return [l, m, s];
+}
+export const lmsValue = ([l, m, s], z) => m * (1 + l * s * z) ** (1 / l);
+export function bmiForAgeZ(bmiV, ageMo, male) {
+  const p = bfaLms(ageMo, male); if (!p) return NaN;
+  const [l, m, s] = p;
+  let z = ((bmiV / m) ** l - 1) / (s * l);
+  if (z > 3) { const s3 = lmsValue(p, 3), s2 = lmsValue(p, 2); z = 3 + (bmiV - s3) / (s3 - s2); }
+  else if (z < -3) { const s3 = lmsValue(p, -3), s2 = lmsValue(p, -2); z = -3 + (bmiV - s3) / (s2 - s3); }
+  return z;
+}
+// Kategori IMT/U anak 5–18 th, Permenkes RI No. 2/2020: gizi buruk < −3; gizi kurang −3 s.d. < −2; gizi baik −2 s.d. +1; gizi lebih > +1 s.d. +2; obesitas > +2
+export function imtuCat(z) {
+  const r = Math.round(z * 100) / 100;      // dinilai dari z 2 desimal, sama dengan angka yang ditampilkan
+  if (r < -3) return 'sev';
+  if (r < -2) return 'thin';
+  if (r <= 1) return 'normal';
+  if (r <= 2) return 'over';
+  return 'obese';
+}

@@ -10,6 +10,8 @@ export const M48_REF = {
   ioc: { ref: "Mountjoy M, Ackerman KE, Bailey DM, Burke LM, Constantini N, Hackney AC, et al. 2023 International Olympic Committee's (IOC) consensus statement on Relative Energy Deficiency in Sport (REDs). Br J Sports Med. 2023;57(17):1073-97.", doi: '10.1136/bjsports-2023-106994' },
   pnpk: { ref: 'Kementerian Kesehatan Republik Indonesia. Keputusan Menteri Kesehatan Nomor HK.01.07/MENKES/509/2025 tentang Pedoman Nasional Pelayanan Klinis Tata Laksana Obesitas Dewasa. Jakarta: Kemenkes RI; 2025.', doi: null },
   nice: { ref: 'National Institute for Health and Care Excellence. Overweight and obesity management (NG246). London: NICE; 2025.', doi: null },
+  who2007: { ref: 'de Onis M, Onyango AW, Borghi E, Siyam A, Nishida C, Siekmann J. Development of a WHO growth reference for school-aged children and adolescents. Bull World Health Organ. 2007;85(9):660-7.', doi: '10.2471/BLT.07.043497' },
+  permenkes20: { ref: 'Kementerian Kesehatan Republik Indonesia. Peraturan Menteri Kesehatan Republik Indonesia Nomor 2 Tahun 2020 tentang Standar Antropometri Anak. Jakarta: Kemenkes RI; 2020.', doi: null },
   whowc: { ref: 'World Health Organization. Waist circumference and waist-hip ratio: report of a WHO expert consultation, Geneva, 8-11 December 2008. Geneva: WHO; 2011.', doi: null },
 };
 
@@ -58,7 +60,7 @@ export const M48_T = {
     whtrHigh: '≥0,5: risiko meningkat (NICE)', whtrOk: '<0,5', whrHighTxt: male => `≥${male ? '0,90' : '0,85'}: risiko meningkat (WHO)`, whrOk: male => `<${male ? '0,90' : '0,85'}`,
     wcNeed: 'Isi lingkar pinggang (dan panggul untuk WHR).',
     m4Sources: 'Sumber: ten Haaf & Weijs 2014; O\'Neill dkk. 2023; Cunningham 1980; Wong dkk. 2012; Mifflin dkk. 1990; FAO/WHO/UNU 2004; Thomas dkk. (ACSM/AND/DC) 2016; IOC 2023.',
-    m8Sources: 'Sumber: PNPK Tata Laksana Obesitas Dewasa 2025; NICE NG246 (2025); WHO 2008/2011.',
+    m8Sources: 'Sumber: PNPK Tata Laksana Obesitas Dewasa 2025; NICE NG246 (2025); WHO 2008/2011; anak: WHO Growth Reference 2007 dan Permenkes 2/2020.',
     tenHaafAge: 'Usia di luar populasi asal Ten Haaf (18–35 tahun); bandingkan dengan persamaan lain.',
   },
   en: {
@@ -88,7 +90,7 @@ export const M48_T = {
     whtrHigh: '≥0.5: increased risk (NICE)', whtrOk: '<0.5', whrHighTxt: male => `≥${male ? '0.90' : '0.85'}: increased risk (WHO)`, whrOk: male => `<${male ? '0.90' : '0.85'}`,
     wcNeed: 'Enter waist (and hip for WHR).',
     m4Sources: "Sources: ten Haaf & Weijs 2014; O'Neill et al. 2023; Cunningham 1980; Wong et al. 2012; Mifflin et al. 1990; FAO/WHO/UNU 2004; Thomas et al. (ACSM/AND/DC) 2016; IOC 2023.",
-    m8Sources: 'Sources: Indonesian adult obesity guideline (PNPK) 2025; NICE NG246 (2025); WHO 2008/2011.',
+    m8Sources: 'Sources: Indonesian adult obesity guideline (PNPK) 2025; NICE NG246 (2025); WHO 2008/2011; children: WHO Growth Reference 2007 and Indonesian Regulation 2/2020.',
     tenHaafAge: 'Age outside the Ten Haaf derivation sample (18–35 years); compare with other equations.',
   },
 };

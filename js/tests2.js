@@ -298,7 +298,7 @@ export const TESTS2 = {
       calc(v, b, c) {
         const L = c.L, t = meanOf([v.t1, v.t2]), p = stairPower(b.weight, v.h / 100, t);
         return { val: p, d: 0, unit: 'W', mainLabel: 'Stair climb power', rows: [[L === 'id' ? 'Per kg berat badan' : 'Per kg body mass', `${c.f2(p / b.weight)} W/kg`], [L === 'id' ? 'Waktu dipakai (rerata)' : 'Time used (mean)', `${c.f2(t)} ${L === 'id' ? 'dtk' : 's'}`]],
-          f: [L === 'id' ? 'Power = BB (kg) × 9,8 × tinggi total (m) / waktu (dtk)' : 'Power = mass (kg) × 9.8 × total height (m) / time (s)'], s: [`${c.f1(b.weight)} × 9,8 × ${c.f2(v.h / 100)} / ${c.f2(t)} = ${c.f0(p)} W`],
+          f: [L === 'id' ? 'Power = BB (kg) × 9,8 × tinggi total (m) / waktu (dtk)' : 'Power = mass (kg) × 9.8 × total height (m) / time (s)'], s: [`${c.f1(b.weight)} × ${c.k('9,8')} × ${c.f2(v.h / 100)} / ${c.f2(t)} = ${c.f0(p)} W`],
           copy: L === 'id' ? `Stair climb power: ${c.f0(p)} W (${c.f2(p / b.weight)} W/kg; tinggi ${c.f1(v.h)} cm, waktu ${c.f2(t)} dtk)` : `Stair climb power: ${c.f0(p)} W (${c.f2(p / b.weight)} W/kg; height ${c.f1(v.h)} cm, time ${c.f2(t)} s)` };
       },
     },
@@ -311,7 +311,7 @@ export const TESTS2 = {
       caveat: { id: 'Hanya tinggi lompat; power tidak dihitung (keputusan dr. Marcus). Menekuk lutut saat mendarat memperpanjang waktu melayang sehingga tinggi terlalu besar.', en: 'Jump height only; power is not calculated (Dr Marcus\'s decision). Bending the knees on landing lengthens flight time and overestimates height.' },
       calc(v, b, c) {
         const L = c.L, h = jumpHeightCm(v.ft);
-        return { val: h, d: 1, unit: 'cm', mainLabel: L === 'id' ? 'Tinggi lompat' : 'Jump height', f: [L === 'id' ? 'h = g × t² / 8 (g = 9,81 m/s²; t = waktu melayang)' : 'h = g × t² / 8 (g = 9.81 m/s²; t = flight time)'], s: [`9,81 × ${c.f2(v.ft / 1000)}² / 8 = ${c.f1(h)} cm`],
+        return { val: h, d: 1, unit: 'cm', mainLabel: L === 'id' ? 'Tinggi lompat' : 'Jump height', f: [L === 'id' ? 'h = g × t² / 8 (g = 9,81 m/s²; t = waktu melayang)' : 'h = g × t² / 8 (g = 9.81 m/s²; t = flight time)'], s: [`${c.k('9,81')} × ${c.f2(v.ft / 1000)}² / 8 = ${c.f1(h)} cm`],
           copy: L === 'id' ? `CMJ: waktu melayang ${c.f0(v.ft)} ms → tinggi ${c.f1(h)} cm` : `CMJ: flight time ${c.f0(v.ft)} ms → height ${c.f1(h)} cm` };
       },
     },

@@ -3,14 +3,14 @@ import { HRMAX, HRMAX_ORDER, hrmax, hrmaxApplies, acsmZones, karvonen, LIMITS, r
   rmrTenHaaf, rmrMifflin, rmrCunningham, energyAvail, CHO, PROTEIN, FAT_PCT, PAL_BANDS,
   bmi, bmiCat, centralObese, whtr, whr, whrHigh,
   siri, jp3Men, jpw3Women, dwRow, dwDensity, hastutiAbd, ffmFrom, targetWeight, endomorphy, mesomorphy, hwr, ectomorphy, somatoXY, somatoCategory,
-  sweatLoss, sweatRate, bmChangePct, lsiDist, lsiTime, hqRatio } from './formulas.js';
+  sweatLoss, sweatRate, bmChangePct, lsiDist, lsiTime, hqRatio, bmiForAgeZ, imtuCat, bfaLms, lmsValue, CHILD_AGE, SOS_MIN_W } from './formulas.js';
 import { TESTS, REF, RM_INFO } from './tests.js';
 import { M48_REF, M4_FIELDS, M8_FIELDS, M48_T } from './m48.js';
 import { M510_REF, SITES, EQS, EQ_ORDER, SOMATO_SITES, M10_FIELDS, M510_T, GUIDE, GUIDE_GENERAL, GUIDE_SRC, SOMATO_CAT } from './m510.js';
 import { NYPR, nyprSvg, NYPR_REF } from './nypr.js';
 import { M79_REF, SUPPS, M7_SAFE, LSI_ROWS, HQ_FIELDS, M79_T } from './m79.js';
 import { SOS, SOS_REF, SOS_T, CONC } from './darurat.js';
-import { MODULES, COMPS, T, M1_FORMULAS, KARVONEN_REF, GLOSSARY, ABOUT } from './i18n.js';
+import { MODULES, COMPS, T, M1_FORMULAS, KARVONEN_REF, GLOSSARY, ABOUT, CHILD_T } from './i18n.js';
 import { S, load, save, clear, expireIfDue, expiresAt, isEmpty } from './session.js';
 import { startTitleCase } from './titlecase.js';
 import { SKR_REF, LINKS, ACSM_Q, ACSM_Q_INTENT, ACSM_Q_CLEAR, acsmResult, ACSM_ALWAYS, AHA14, AHA_GROUPS } from './screening.js';
@@ -53,6 +53,7 @@ const ICONS = {
   timer: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M9 2h6"/>',
   chevr: '<path d="m9 18 6-6-6-6"/>',
   pulse: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+  school: '<path d="m2 9 10-5 10 5-10 5Z"/><path d="M6 11v5c0 1.5 3 3 6 3s6-1.5 6-3v-5"/><path d="M22 9v6"/>',
 };
 const svg = (name, color = 'currentColor', size = 20, sw = 2) =>
   `<svg aria-hidden="true" focusable="false" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
@@ -75,6 +76,20 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 const num = (v, d = 0) => Number(v).toLocaleString(lang === 'id' ? 'id-ID' : 'en-GB', { minimumFractionDigits: d, maximumFractionDigits: d });
 const dec = v => (Number.isInteger(+v.toFixed(2)) ? num(v, 0) : num(v, 1));
 const parse = s => { const x = parseFloat(String(s).replace(',', '.')); return Number.isFinite(x) ? x : NaN; };
+// Mode anak & remaja: usia terisi, valid, dan <18 tahun
+const TC = () => CHILD_T[lang];
+const ageFmt = a => num(a, Number.isInteger(a) ? 0 : 1);
+function isChild() { const a = parse(S.base.age); return S.base.age !== '' && a >= LIMITS.age[0] && a <= LIMITS.age[1] && a < CHILD_AGE; }
+const childNote = txt => `<div class="note child" role="note">${svg('info', '#9A3412')}<span>${esc(txt)}</span></div>`;
+function updateChildBanner() {
+  const main = document.querySelector('main.main'); if (!main) return;
+  const want = isChild() && /^#\/(m\/|data$|ringkasan$)/.test(location.hash);
+  let el = document.getElementById('childBanner');
+  if (want && !el) { main.insertAdjacentHTML('afterbegin', `<div class="note child" id="childBanner" role="status">${svg('alert', '#9A3412')}<span>${esc(TC().banner)}</span></div>`); }
+  else if (want && el) el.querySelector('span').textContent = TC().banner;
+  else if (!want && el) el.remove();
+}
+const ageField = s => field('age', t().age, t().years, S.base.age, { err: s.err.age, dec: true, hint: TC().ageHint });
 
 // ---------- Rangka layar ----------
 function langToggle() {
@@ -202,7 +217,7 @@ function renderM1() {
 
 function m1Fields(s) {
   return `<div style="display:flex;flex-direction:column;gap:14px">
-    ${field('age', t().age, t().years, S.base.age, { err: s.err.age })}
+    ${ageField(s)}
     ${field('hrRest', t().hrRest, t().bpm, S.m1.hrRest, { req: false, tag: t().forZones, hint: t().hrRestHint, def: 'hrrest', err: s.err.hrRest })}
     ${field('hrMeas', t().hrMeas, t().bpm, S.m1.hrMeas, { req: false, hint: t().hrMeasHint, def: 'hrmeas', err: s.err.hrMeas })}</div>`;
 }
@@ -217,7 +232,7 @@ function formulaText(key) {
 function m1Out(s) {
   if (!s.ok) UI.copy = null;
   if (!s.ok) return `<section class="card"><h2 class="h2">${esc(t().estHr)}</h2><p class="empty" style="margin:0">${esc(t().fillFirst)}</p></section>`;
-  const keys = HRMAX_ORDER.filter(k => hrmaxApplies(k, S.base.sex));
+  const child = isChild(), keys = HRMAX_ORDER.filter(k => hrmaxApplies(k, S.base.sex) && (!child || k === 'tanaka'));
   const vals = Object.fromEntries(HRMAX_ORDER.map(k => [k, hrmax(k, s.age)]));
   const rounded = keys.map(k => Math.round(vals[k]));
   const lo = Math.min(...rounded), hi = Math.max(...rounded);
@@ -232,13 +247,13 @@ function m1Out(s) {
   const hrr = s.restOk ? baseVal - s.hrRest : NaN;
 
   const rows = HRMAX_ORDER.map(k => {
-    const on = hrmaxApplies(k, S.base.sex);
+    const on = keys.includes(k);
     const info = M1_FORMULAS[k];
     const open = UI.open.has(k);
     const v = on ? num(Math.round(vals[k])) : '—';
     const box = open ? `<div class="fbox" id="fx-${k}">
         <span class="k">${esc(t().fFormula)}</span><span class="f">${esc(formulaText(k))}</span>
-        ${on ? `<span class="k">${esc(t().fWithData)}</span><span class="s">${k === 'fox' ? `220 − ${num(s.age)}` : `${HRMAX[k].a} − ${esc(coef(k))} × ${num(s.age)}`} = ${esc(dec(vals[k]))}</span>` : ''}
+        ${on ? `<span class="k">${esc(t().fWithData)}</span><span class="s">${k === 'fox' ? `220 − ${ageFmt(s.age)}` : `${HRMAX[k].a} − ${esc(coef(k))} × ${ageFmt(s.age)}`} = ${esc(dec(vals[k]))}</span>` : ''}
         <span class="k">${esc(t().fPop)}</span><span class="r">${esc(info.pop[lang])}</span>
         ${info.ref ? `<span class="k">${esc(t().fSource)}</span><span class="r">${esc(info.ref)} <a href="https://doi.org/${info.doi}" target="_blank" rel="noopener">doi:${info.doi}</a></span><span class="hint">${esc(t().doiNote)}</span>` : ''}
       </div>` : '';
@@ -265,24 +280,25 @@ function m1Out(s) {
   const d = `${String(today.getDate()).padStart(2, '0')}-${String(today.getMonth() + 1).padStart(2, '0')}-${today.getFullYear()}`;
   const zt = zones.map(z => `${z.bpmLo}–${z.bpmHi}`);
   const baseShort = S.m1.basis === 'measured' ? t().measuredName : M1_FORMULAS[S.m1.basis].short;
-  const lines = [t().copyHeader(d), t().copyInput(S.base.sex, num(s.age), s.restOk ? num(s.hrRest) : '')];
+  const lines = [t().copyHeader(d), t().copyInput(S.base.sex, ageFmt(s.age), s.restOk ? num(s.hrRest) : '')];
   if (s.restOk) {
     lines.push(S.m1.basis === 'measured' ? t().copyRangeOnly(lo, hi) : t().copyRange(lo, hi, baseName, baseVal));
     if (S.m1.basis === 'measured') lines.push(t().copyMeasured(s.hrMeas));
-    lines.push(t().copyZones(zt), t().copySrc(baseShort));
+    lines.push(t().copyZones(zt), t().copySrc(baseShort + (child ? '; Cicone 2019' : '')));
   } else {
     lines.push(t().copyRangeNoZone(lo, hi));
     if (s.measOk) lines.push(t().copyMeasuredPlain(s.hrMeas));
-    lines.push(t().copySrcNoZone(keys.map(k => M1_FORMULAS[k].short).filter(x => !x.startsWith('Fox')).join('; ')));
+    lines.push(t().copySrcNoZone(keys.map(k => M1_FORMULAS[k].short).filter(x => !x.startsWith('Fox')).join('; ') + (child ? '; Cicone 2019' : '')));
   }
   UI.copy = lines.join('\n');
 
   return `<section class="card" aria-labelledby="h-est">
       <div class="lbl-row"><h2 class="h2" id="h-est">${esc(t().estHr)}</h2>${ibtn('hrmax', 'HRmax')}</div>
-      <div class="big"><b>${num(lo)}–${num(hi)}</b><span>${esc(t().bpm)}</span></div>
+      <div class="big"><b>${lo === hi ? num(lo) : `${num(lo)}–${num(hi)}`}</b><span>${esc(t().bpm)}</span></div>
       <span class="hint" style="margin-top:-8px">${esc(t().rangeNote(keys.length))}</span>
       <div>${rows}</div>
       <div class="note">${svg('alert', '#9A3412')}<span>${esc(t().accuracyWarn)}</span></div>
+      ${child ? `${childNote(TC().m1)}<span class="hint">${esc(TC().m1Src)} <a href="https://doi.org/10.1080/02701367.2019.1615605" target="_blank" rel="noopener">doi:10.1080/02701367.2019.1615605</a></span>` : ''}
     </section>
     <section class="card" aria-labelledby="h-z" style="margin-top:14px">
       <div class="lbl-row"><h2 class="h2" id="h-z">${esc(t().zones)}</h2>${ibtn('karvonen', 'Karvonen')}</div>
@@ -330,7 +346,7 @@ function skrAcsm() {
   const icon = r ? (r.level === 'ok' ? 'check' : 'alert') : 'info';
   const res = !r ? `<p class="empty" style="margin:0">${esc(t().answerAll)}</p>`
     : `<div class="note ${r.level === 'stop' ? 'danger' : ''}" role="status">${svg(icon, r.level === 'stop' ? '#B91C1C' : '#9A3412')}<span>${esc(r[lang])}</span></div>`;
-  return `<section class="card" aria-labelledby="h-q"><h2 class="h2" id="h-q">${esc(t().questions)}</h2>
+  return `${isChild() ? childNote(TC().skr) : ''}<section class="card" aria-labelledby="h-q"><h2 class="h2" id="h-q">${esc(t().questions)}</h2>
       <div style="display:flex;flex-direction:column;gap:14px">${qs}${extra}</div></section>
     <section class="card" aria-labelledby="h-rec" style="margin-top:14px"><div class="lbl-row"><h2 class="h2" id="h-rec">${esc(t().recommendation)}</h2>${ibtn('clearance', 'Medical clearance')}</div>
       ${res}
@@ -495,7 +511,7 @@ function refreshSkr(focusSel) {
 
 // ---------- Modul 4 (energi & makro) dan Modul 8 (antropometri dasar) ----------
 const tt = () => ({ ...t(), ...M48_T[lang] });
-const CUSTOM = { m4: { fields: M4_FIELDS, needs: ['age', 'sex', 'weight', 'height'] }, m8: { fields: M8_FIELDS, needs: ['sex', 'weight', 'height'] } };
+const CUSTOM = { m4: { fields: M4_FIELDS, needs: ['age', 'sex', 'weight', 'height'] }, m8: { fields: M8_FIELDS, needs: ['age', 'sex', 'weight', 'height'] } };
 const unitOf = u => (typeof u === 'string' ? u : u[lang]);
 function customState(mod) {
   const cfg = CUSTOM[mod], base = m1State(), v = {}, err = {};
@@ -514,7 +530,7 @@ function customState(mod) {
 function customFields(mod, s) {
   const cfg = CUSTOM[mod], out = [];
   for (const k of cfg.needs) {
-    if (k === 'age') out.push(field('age', t().age, t().years, S.base.age, { err: s.err.age }));
+    if (k === 'age') out.push(ageField(s));
     if (k === 'sex') out.push(sexField());
     if (k === 'weight') out.push(field('weight', t().weight, 'kg', S.base.weight, { err: s.err.weight, dec: true }));
     if (k === 'height') out.push(field('height', t().height, 'cm', S.base.height, { err: s.err.height, dec: true }));
@@ -536,7 +552,7 @@ const emptyP = txt => `<p class="empty" style="margin:0">${esc(txt)}</p>`;
 
 function m4Calc(s) {
   const { v, b } = s, male = b.sex === 'M', T = tt();
-  if (!s.ok) return null;
+  if (!s.ok || isChild()) return null;
   const r = { eq: {} };
   r.eq.th = rmrTenHaaf(b.weight, b.height / 100, b.age, male);
   if (Number.isFinite(v.ffm)) r.eq.cun = rmrCunningham(v.ffm);
@@ -555,6 +571,7 @@ const n1 = x => num(x, Number.isInteger(x) ? 0 : 1);
 const rng = (a, b2, d = 0) => `${num(a, d)}–${num(b2, d)}`;
 function m4Out(s) {
   const T = tt(), r = m4Calc(s), b = s.b, male = b.sex === 'M';
+  if (s.ok && isChild()) return card('h-rmr', T.rmrHead, 'rmr', childNote(TC().m4), false);
   if (!r) return card('h-rmr', T.rmrHead, 'rmr', emptyP(t().needBase(s.missing.map(k => t().baseNames[k]).join(', '))), false);
   const row = (k, val, badge) => `<div class="frow ${r.eq[k] ? '' : 'off'}"><div class="frow-main"><div class="frow-name" style="font-size:14px">${esc(T.eq[k])}${badge ? `<span class="badge">${esc(badge)}</span>` : ''}</div></div><span class="frow-val" style="font-size:17px">${val}</span></div>`;
   const rows = ['th', 'cun', 'mif'].map(k => row(k, r.eq[k] ? `${num(r.eq[k])} <small>${esc(T.kcal)}</small>` : `<span class="opt">${esc(T.needFfm)}</span>`, k === 'th' ? T.main : '')).join('');
@@ -564,7 +581,7 @@ function m4Out(s) {
     : ['Ten Haaf (mass): 11.936×W + 587.728×H(m) − 8.129×age + 191.027×sex + 29.279', 'Cunningham: 500 + 22×FFM',
       'Mifflin-St Jeor: 10×W + 6.25×H(cm) − 5×age + 5 (men) / − 161 (women)', 'W = body mass (kg); H = height; sex: male = 1, female = 0'];
   const cf = c => (lang === 'id' ? String(c).replace('.', ',') : String(c));
-  const sRmr = [`Ten Haaf: ${cf(11.936)}×${num(b.weight, 1)} + ${cf(587.728)}×${num(b.height / 100, 2)} − ${cf(8.129)}×${num(b.age)} + ${cf(191.027)}×${male ? 1 : 0} + ${cf(29.279)} = ${num(r.eq.th)}`];
+  const sRmr = [`Ten Haaf: ${cf(11.936)}×${num(b.weight, 1)} + ${cf(587.728)}×${num(b.height / 100, 2)} − ${cf(8.129)}×${ageFmt(b.age)} + ${cf(191.027)}×${male ? 1 : 0} + ${cf(29.279)} = ${num(r.eq.th)}`];
   const rmrCard = card('h-rmr', T.rmrHead, 'rmr', `${rows}
     ${r.outAge ? `<div class="note">${svg('alert', '#9A3412')}<span>${esc(T.tenHaafAge)}</span></div>` : ''}
     <span class="hint">${esc(t().popLbl)}: ${esc(lang === 'id' ? 'Ten Haaf: 90 atlet rekreasional Belanda 18–35 th; meta-analisis 2023 (29 studi, 1.430 atlet) menilainya paling presisi. Cunningham: butuh FFM; pada 125 atlet elit Malaysia meleset paling banyak ±6%. Mifflin-St Jeor: 498 dewasa sehat non-atlet; cenderung meleset pada atlet.' : 'Ten Haaf: 90 Dutch recreational athletes aged 18–35; a 2023 meta-analysis (29 studies, 1,430 athletes) found it most precise. Cunningham: needs FFM; within ±6% in 125 Malaysian elite athletes. Mifflin-St Jeor: 498 healthy non-athlete adults; tends to miss in athletes.')}</span>
@@ -593,7 +610,12 @@ function m4Out(s) {
 function m8Calc(s) {
   if (!s.ok) return null;
   const { v, b } = s, male = b.sex === 'M', r = {};
-  r.bmi = bmi(b.weight, b.height); r.cat = bmiCat(r.bmi);
+  r.bmi = bmi(b.weight, b.height);
+  r.child = isChild();
+  if (r.child) {   // IMT/U WHO 2007, kategori Permenkes 2/2020
+    r.mo = b.age * 12; r.z = bmiForAgeZ(r.bmi, r.mo, male); r.zcat = imtuCat(r.z);
+    const p = bfaLms(r.mo, male); r.lms = p; r.cuts = { m2: lmsValue(p, -2), med: p[1], p1: lmsValue(p, 1), p2: lmsValue(p, 2) };
+  } else r.cat = bmiCat(r.bmi);
   if (Number.isFinite(v.wc)) { r.wc = v.wc; r.central = centralObese(v.wc, male); r.whtr = whtr(v.wc, b.height); }
   if (Number.isFinite(v.wc) && Number.isFinite(v.hc)) { r.whr = whr(v.wc, v.hc); r.whrHigh = whrHigh(r.whr, male); }
   return r;
@@ -601,6 +623,7 @@ function m8Calc(s) {
 function m8Out(s) {
   const T = tt(), r = m8Calc(s), b = s.b, male = b.sex === 'M';
   if (!r) return card('h-bmi', T.bmiHead, 'bmi', emptyP(t().needBase(s.missing.map(k => t().baseNames[k]).join(', '))), false);
+  if (r.child) return m8ChildOut(s, r);
   const bmiCard = card('h-bmi', T.bmiHead, 'bmi', `<div class="big"><b>${num(r.bmi, 1)}</b><span>kg/m²</span></div>
     ${kvRow(lang === 'id' ? 'Kategori' : 'Category', T.bmiCat[r.cat])}
     ${r.bmi >= 23 ? `<div class="note">${svg('info', '#9A3412')}<span>${esc(T.bmiMuscle)}</span></div>` : ''}
@@ -614,6 +637,25 @@ function m8Out(s) {
   return `${bmiCard}${card('h-wc', T.wcHead, 'whtr', wcInner)}${copyCard(customCopy('m8'))}`;
 }
 
+const zTxt = z => `${z > 0 ? '+' : z < 0 ? '−' : ''}${num(Math.abs(Math.round(z * 100) / 100), 2)}`;
+function m8ChildOut(s, r) {
+  const T = tt(), C = TC(), b = s.b, male = b.sex === 'M';
+  const [L, M, S_] = r.lms, c4 = x => num(x, 4);
+  const fx = [lang === 'id' ? 'IMT = BB (kg) / TB (m)²' : 'BMI = mass (kg) / height (m)²',
+    'z = ((IMT / M)^L − 1) / (L × S)'.replace('IMT', lang === 'id' ? 'IMT' : 'BMI'),
+    lang === 'id' ? 'L, M, S dari tabel WHO 2007 menurut jenis kelamin dan usia (bulan), diinterpolasi antarbulan; di luar ±3 SD dipakai koreksi WHO' : 'L, M, S from the WHO 2007 table by sex and age (months), interpolated between months; beyond ±3 SD the WHO correction is used',
+    lang === 'id' ? 'Gizi buruk < −3; gizi kurang −3 s.d. < −2; gizi baik −2 s.d. +1; gizi lebih > +1 s.d. +2; obesitas > +2' : 'Severe thinness < −3; thinness −3 to < −2; normal −2 to +1; overweight > +1 to +2; obese > +2'];
+  const sl = [`${num(b.weight, 1)} / ${num(b.height / 100, 2)}² = ${num(r.bmi, 1)}`, `${C.ageMo}: ${ageFmt(b.age)} × 12 = ${num(r.mo, 1)}`,
+    `L = ${c4(L)}, M = ${c4(M)}, S = ${num(S_, 5)}`, `z = ${zTxt(r.z)}`];
+  const cutRows = ['m2', 'med', 'p1', 'p2'].map(k => kvRow(C.cut[k], `${num(r.cuts[k], 1)} kg/m²`)).join('');
+  const bmiCard = card('h-bmi', C.imtuHead, 'imtu', `<div class="big"><b>${num(r.bmi, 1)}</b><span>kg/m²</span></div>
+    ${kvRow(C.zRow, zTxt(r.z))}${kvRow(C.catRow, C.cat[r.zcat])}
+    <h3 class="h2" style="font-size:15px;margin-top:6px">${esc(C.cuts)} (${ageFmt(b.age)} ${t().yearsShort}, ${esc(male ? t().male : t().female)})</h3>${cutRows}
+    <span class="hint">${esc(C.imtuNote)}</span>
+    ${fxBtn('bmi')}${UI.mfx.has('bmi') ? fxBox48('bmi', fx, sl, ['who2007', 'permenkes20']) : ''}`, false);
+  const wcInner = r.wc === undefined ? emptyP(T.wcNeed) : `${kvRow(T.wcRow, `${n1(r.wc)} cm`)}${kvRow(T.whtrRow, num(r.whtr, 3))}${r.whr !== undefined ? kvRow(T.whrRow, num(r.whr, 3)) : ''}${childNote(C.wcChild)}`;
+  return `${bmiCard}${card('h-wc', T.wcHead, 'whtr', wcInner)}${copyCard(customCopy('m8'))}`;
+}
 function customCopy(mod) {
   const s = customState(mod), T = tt(), lines = [], gday = lang === 'id' ? 'g/hari' : 'g/day';
   let src = '';
@@ -629,6 +671,14 @@ function customCopy(mod) {
   } else {
     const r = m8Calc(s); if (!r) return null;
     const male = s.b.sex === 'M';
+    if (r.child) {
+      const C = TC();
+      lines.push(`${lang === 'id' ? 'IMT' : 'BMI'} ${num(r.bmi, 1)} kg/m²; ${lang === 'id' ? 'IMT/U' : 'BMI-for-age'} z ${zTxt(r.z)} (${C.catShort[r.zcat]}, Permenkes 2/2020)`);
+      if (r.wc !== undefined) lines.push(`${T.wcRow} ${n1(r.wc)} cm; WHtR ${num(r.whtr, 3)}${r.whr !== undefined ? `; WHR ${num(r.whr, 3)}` : ''} (${lang === 'id' ? 'tanpa ambang dewasa' : 'no adult thresholds'})`);
+      src = 'WHO Growth Reference 2007; Permenkes 2/2020';
+      const body = [...lines, t().srcLine(src)], M = MODULES.find(m => m.id === mod), bs = baseSummary();
+      return { text: [t().copyHeaderMod(8, M.title[lang], todayStr()), ...(bs ? [`${t().baseLabel}: ${bs}`] : []), ...body].join('\n'), body };
+    }
     lines.push(`IMT ${num(r.bmi, 1)} kg/m² (${T.bmiCat[r.cat]}, PNPK 2025)`.replace('IMT', lang === 'id' ? 'IMT' : 'BMI'));
     if (r.wc !== undefined) lines.push(`${T.wcRow} ${n1(r.wc)} cm — ${r.central ? T.wcCentral : T.wcNot}`, `WHtR ${num(r.whtr, 3)} — ${r.whtr >= 0.5 ? T.whtrHigh : T.whtrOk}`);
     if (r.whr !== undefined) lines.push(`WHR ${num(r.whr, 3)} — ${r.whrHigh ? T.whrHighTxt(male) : T.whrOk(male)}`);
@@ -643,7 +693,7 @@ function renderCustom(mod) {
   const i = MODULES.findIndex(m => m.id === mod), M = MODULES[i], s = customState(mod), T = tt();
   app.innerHTML = `${pageHeader(t().moduleLabel(String(i + 1).padStart(2, '0'), M.cat[lang]), M.title[lang], T[`${mod}Sub`])}
   <main class="main">
-    <div class="note">${svg('body', '#9A3412')}<span>${esc(T[`${mod}Pop`])}</span></div>
+    <div class="note" id="popNote">${svg('body', '#9A3412')}<span>${esc(customPop(mod))}</span></div>
     <section class="card" aria-labelledby="h-in">
       <div class="row-between"><h2 class="h2" id="h-in">${esc(t().dataIn)}</h2><span class="muted"><span class="req">*</span> ${esc(t().required)}</span></div>
       <div id="fields">${customFields(mod, s)}</div>
@@ -653,8 +703,10 @@ function renderCustom(mod) {
     <div class="foot"><span>${esc(T[`${mod}Sources`])}</span><span>${esc(t().meta2)}</span></div>
   </main>${nav('calc')}`;
 }
+const customPop = mod => (mod === 'm8' && isChild() ? TC().m8Pop : tt()[`${mod}Pop`]);
 function refreshCustom(mod, keepInputs = false) {
   const s = customState(mod);
+  const pn = document.querySelector('#popNote span'); if (pn) pn.textContent = customPop(mod);
   if (keepInputs) updateFieldMsgs(s); else document.getElementById('fields').innerHTML = customFields(mod, s);
   document.getElementById('modout').innerHTML = mod === 'm4' ? m4Out(s) : m8Out(s);
 }
@@ -691,7 +743,7 @@ function m5State() {
 function m5Fields(s) {
   const out = [];
   for (const k of s.needs) {
-    if (k === 'age') out.push(field('age', t().age, t().years, S.base.age, { err: s.err.age }));
+    if (k === 'age') out.push(ageField(s));
     if (k === 'sex') out.push(sexField());
     if (k === 'weight') out.push(field('weight', t().weight, 'kg', S.base.weight, { err: s.err.weight, dec: true }));
     if (k === 'height') out.push(field('height', t().height, 'cm', S.base.height, { err: s.err.height, dec: true }));
@@ -714,9 +766,10 @@ function m5Fields(s) {
   out.push(`<button type="button" class="linkbtn guidebtn" data-guide="_gen" aria-expanded="${go}">${esc(T5().genTech)}${svg('chev', '#9A3412', 16)}</button>${go ? `<div class="fbox guidebox"><span class="r">${esc(GUIDE_GENERAL[lang])}</span><span class="hint">${esc(GUIDE_SRC[lang])}</span></div>` : ''}`);
   return `<div style="display:flex;flex-direction:column;gap:14px">${out.join('')}</div>`;
 }
+const m5Young = s => !s.missing.length && s.b.age < EQS[m5Eq()].age[0];   // di bawah usia termuda populasi asal persamaan
 function m5FatCalc(s) {
   const eq = m5Eq(), E = EQS[eq], v = s.v, b = s.b;
-  if (s.missing.length || !E.sites.every(k => Number.isFinite(v[k]))) return null;
+  if (s.missing.length || m5Young(s) || !E.sites.every(k => Number.isFinite(v[k]))) return null;
   const sum = E.sites.reduce((a, k) => a + v[k], 0), r = { eq, sum };
   if (eq === 'hastuti') r.pct = hastutiAbd(v.abd, v.tri, b.age);
   else {
@@ -789,7 +842,8 @@ function m5Out(s) {
   }
   const r = m5FatCalc(s), E = EQS[m5Eq()];
   let inner;
-  if (!r) inner = emptyP(s.missing.length ? t().needBase(s.missing.map(k => t().baseNames[k]).join(', ')) : T.fatNeed);
+  if (!r && m5Young(s)) inner = childNote(TC().m5Eq(E.age[0]));
+  else if (!r) inner = emptyP(s.missing.length ? t().needBase(s.missing.map(k => t().baseNames[k]).join(', ')) : T.fatNeed);
   else {
     const fx = r.D !== undefined
       ? [r.eq === 'dw' ? (lang === 'id' ? 'D = C − M × log₁₀(Σ4); C dan M menurut usia dan jenis kelamin' : 'D = C − M × log₁₀(Σ4); C and M by age and sex') : r.eq === 'jp3' ? 'D = 1,10938 − 0,0008267×S + 0,0000016×S² − 0,0002574×usia' : 'D = 1,0994921 − 0,0009929×S + 0,0000023×S² − 0,0001392×usia', 'Siri: %lemak = 495/D − 450']
@@ -985,7 +1039,7 @@ function m7PickedCard() {
   return card('h-m7pick', T.pickedHead, null, list.length ? `<ul class="pqnotes" style="margin:0;color:var(--ink)">${list.map(sp => `<li>${esc(sp.name[lang])}</li>`).join('')}</ul>` : emptyP(T.pickedNone));
 }
 function m7Out() {
-  return `${m7Sel()}${m7Card()}${m7PickedCard()}${copyCard(m7Copy())}`;
+  return `${isChild() ? `<section class="card" style="margin-top:14px">${childNote(TC().m7)}<span class="hint">${esc(TC().m7Src)} <a href="https://doi.org/10.1542/peds.2016-1300" target="_blank" rel="noopener">doi:10.1542/peds.2016-1300</a></span></section>` : ''}${m7Sel()}${m7Card()}${m7PickedCard()}${copyCard(m7Copy())}`;
 }
 function m7Copy() {
   const list = m7Picked(); if (!list.length) return null;
@@ -1077,10 +1131,10 @@ function refreshM79(mod, keepInputs = false) {
 }
 
 // ---------- Modul 2 & 3: tes berbasis data (lihat tests.js) ----------
-const MODNUM = { m2: '02', m3: '03', m11: '11', m12: '12', m13: '13' };
-const GEN = /^#\/m\/(m2|m3|m11|m12|m13)$/; // modul dengan mesin "pilih tes"
+const MODNUM = { m2: '02', m3: '03', m11: '11', m12: '12', m13: '13', m14: '14' };
+const GEN = /^#\/m\/(m2|m3|m11|m12|m13|m14)$/; // modul dengan mesin "pilih tes"
 const DEFKEY = { queens: 'steptest', yoyo: 'yoyo', ift: 'vift', smwt: 'smwt', grip: 'grip', sts: 'sts' };
-const ctx = () => ({ L: lang, f0: x => num(x, 0), f1: x => num(x, 1), f2: x => num(x, 2), u: lang === 'id' ? 'mL/kg/mnt' : 'mL/kg/min' });
+const ctx = () => ({ L: lang, f0: x => num(x, 0), f1: x => num(x, 1), f2: x => num(x, 2), fa: ageFmt, k: x => (lang === 'id' ? x : x.replace(',', '.')), u: lang === 'id' ? 'mL/kg/mnt' : 'mL/kg/min' });
 const fid = (mod, tid, k) => `t-${mod}-${tid}-${k}`;
 const curTest = mod => TESTS[mod].find(x => x.id === S[mod].test) || TESTS[mod][0];
 const baseVals = () => ({ age: parse(S.base.age), sex: S.base.sex, weight: parse(S.base.weight), height: parse(S.base.height) });
@@ -1109,7 +1163,10 @@ function evalTest(mod, test) {
   // usia di luar populasi asal: tetap dihitung, diberi catatan (juga di teks salin)
   const outAge = !!(res && test.ageRange && S.base.age !== '' && !baseErr.age && (b.age < test.ageRange[0] || b.age > test.ageRange[1]));
   if (outAge && res.copy) res.copy += t().copyOutAge;
-  return { v, err, missing, res, fieldsOk, outAge };
+  // mode anak: tes yang hanya divalidasi pada dewasa diberi tanda (bila belum tertandai "usia di luar populasi asal")
+  const adultOnly = !!(res && test.adult && !outAge && isChild());
+  if (adultOnly && res.copy) res.copy += TC().adultCopy;
+  return { v, err, missing, res, fieldsOk, outAge, adultOnly };
 }
 
 function modState(mod) {
@@ -1143,7 +1200,7 @@ function renderMod(mod) {
 function modFields(mod, s) {
   const test = s.test, out = [];
   for (const k of test.needs) {
-    if (k === 'age') out.push(field('age', t().age, t().years, S.base.age, { err: s.err.age }));
+    if (k === 'age') out.push(ageField(s));
     if (k === 'sex') out.push(sexField());
     if (k === 'weight') out.push(field('weight', t().weight, 'kg', S.base.weight, { err: s.err.weight, dec: true }));
     if (k === 'height') out.push(field('height', t().height, 'cm', S.base.height, { err: s.err.height, dec: true }));
@@ -1186,6 +1243,7 @@ function modOut(mod, s) {
       ${(r.rows || []).map(([k, v]) => kvRow(k, v)).join('')}
       ${r.flag ? `<div class="note">${svg(r.flag.level === 'warn' ? 'alert' : 'info', '#9A3412')}<span>${esc(r.flag.text)}</span></div>` : ''}
       ${s.outAge ? `<div class="note">${svg('alert', '#9A3412')}<span>${esc(t().outAge(test.ageRange[0], test.ageRange[1]))}${test.ageNote ? ` ${esc(test.ageNote[lang])}` : ''}</span></div>` : ''}
+      ${s.adultOnly ? childNote(TC().adult) : ''}
       <span class="hint">${esc(t().popLbl)}: ${esc(test.pop[lang])}</span>
       ${fxBtn(test.id)}${UI.mfx.has(test.id) ? fxBox(test.id, r.f, r.s, test.pop[lang], test.refs) : ''}`;
   }
@@ -1269,6 +1327,7 @@ function rmOut(s) {
       ${fxBtn('nz')}${UI.mfx.has('nz') ? `<div class="fbox" id="mfx-nz"><span class="k">${esc(t().fFormula)}</span><span class="f" style="font-size:14px">${lang === 'id' ? 'Beban = 1RM × %1RM' : 'Load = 1RM × %1RM'}</span><span class="k">${esc(t().fSource)}</span>${refHtml(['nuzzo', 'currier'])}<span class="hint">${esc(t().doiNote)}</span></div>` : ''}`;
   }
   return `<section class="card" aria-labelledby="h-rm"><div class="lbl-row"><h2 class="h2" id="h-rm">${esc(t().rmEst)}</h2>${ibtn('1RM', '1RM')}</div>${est}
+      ${isChild() ? childNote(TC().rm) : ''}
       ${test.caveat ? `<div class="note">${svg('alert', '#9A3412')}<span>${esc(test.caveat[lang])}</span></div>` : ''}</section>
     <section class="card" aria-labelledby="h-tb" style="margin-top:14px"><div class="lbl-row"><h2 class="h2" id="h-tb">${esc(t().rmTable)}</h2>${ibtn('pct1rm', '%1RM')}</div>${table}</section>
     ${copyCard(modCopy('m3'))}`;
@@ -1284,7 +1343,8 @@ function refreshMod(mod, keepInputs = false) {
 const FIELD_STORE = { age: () => S.base, weight: () => S.base, height: () => S.base, hrRest: () => S.m1, hrMeas: () => S.m1 };
 function refreshCurrent(keepInputs = false) {
   const h = location.hash;
-  const hs = h.match(/^#\/darurat\/(\w+)$/); if (hs) { const sp = SOS.find(x => x.k === hs[1]); const box = document.getElementById('dosebox'); if (sp && sp.dose && box) { updateFieldMsgs(m1State()); const w = sosW(); box.innerHTML = sp.dose.map(d => { const v = d.t ? d.t[lang] : Number.isFinite(w) ? d.calc(w)[lang] : TS().needW; return d.t ? `<div class="dsrow"><span class="dsl">${esc(d.l[lang])}</span><span class="dst">${esc(v)}</span></div>` : kvRow(d.l[lang], v); }).join(''); } return; }
+  const hs = h.match(/^#\/darurat\/(\w+)$/); if (hs) { const sp = SOS.find(x => x.k === hs[1]); const box = document.getElementById('dosebox'); if (sp && sp.dose && box) { updateFieldMsgs(m1State()); const w = sosW(); const sm = document.getElementById('doseSmall'); if (sm) sm.innerHTML = sosSmall() ? childNote(TC().sosW) : ''; box.innerHTML = sp.dose.map(d => { const v = d.t ? d.t[lang] : Number.isFinite(w) ? d.calc(w)[lang] : TS().needW; return d.t ? `<div class="dsrow"><span class="dsl">${esc(d.l[lang])}</span><span class="dst">${esc(v)}</span></div>` : kvRow(d.l[lang], v); }).join(''); } return; }
+  updateChildBanner();
   if (h === '#/data') { if (keepInputs) updateFieldMsgs(m1State()); else document.getElementById('fields').innerHTML = baseFields(m1State()); }
   else if (/^#\/m\/m1$/.test(h)) refreshM1(keepInputs);
   else { const mm = h.match(GEN); if (mm) refreshMod(mm[1], keepInputs); const mc = h.match(/^#\/m\/(m4|m8)$/); if (mc) refreshCustom(mc[1], keepInputs); const md = h.match(/^#\/m\/(m5|m10)$/); if (md) refreshM510(md[1], keepInputs); const me = h.match(/^#\/m\/(m7|m9)$/); if (me) refreshM79(me[1], keepInputs); if (h === '#/m/m6') refreshM6(); }
@@ -1296,9 +1356,10 @@ const hhmm = ts => { const d = new Date(ts); return `${String(d.getHours()).padS
 function baseSummary() {
   const b = S.base, parts = [];
   if (b.sex) parts.push(b.sex === 'F' ? t().female : t().male);
-  if (b.age) parts.push(`${b.age} ${t().yearsShort}`);
-  if (b.weight) parts.push(`${b.weight} kg`);
-  if (b.height) parts.push(`${b.height} cm`);
+  const loc = x => (lang === 'id' ? String(x).replace('.', ',') : String(x).replace(',', '.'));
+  if (b.age) parts.push(`${loc(b.age)} ${t().yearsShort}`);
+  if (b.weight) parts.push(`${loc(b.weight)} kg`);
+  if (b.height) parts.push(`${loc(b.height)} cm`);
   return parts.join(' · ');
 }
 function clearBtn() {
@@ -1327,7 +1388,7 @@ function renderBase() {
 }
 function baseFields(s) {
   return `<div style="display:flex;flex-direction:column;gap:14px">
-    ${field('age', t().age, t().years, S.base.age, { err: s.err.age })}
+    ${ageField(s)}
     ${sexField()}
     ${field('weight', t().weight, 'kg', S.base.weight, { req: false, tag: t().forOthers, err: s.err.weight, dec: true })}
     ${field('height', t().height, 'cm', S.base.height, { req: false, tag: t().forOthers, err: s.err.height, dec: true })}</div>`;
@@ -1347,7 +1408,7 @@ function moduleCopies() {
   if (cc) out.push({ id: 'conc', title: TS().concCopyHead, text: cc.text, body: cc.body });
   m1Out(m1State());
   if (UI.copy) out.push({ id: 'm1', title: MODULES[0].title[lang], text: UI.copy, body: UI.copy.split('\n').slice(1) });
-  for (const mod of ['m2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8', 'm9', 'm10', 'm11', 'm12', 'm13']) {
+  for (const mod of ['m2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8', 'm9', 'm10', 'm11', 'm12', 'm13', 'm14']) {
     const c = mod === 'm4' || mod === 'm8' ? customCopy(mod) : mod === 'm5' ? m5Copy() : mod === 'm10' ? m10Copy() : mod === 'm6' ? m6Copy() : mod === 'm7' ? m7Copy() : mod === 'm9' ? m9Copy() : modCopy(mod);
     if (c) out.push({ id: mod, title: MODULES.find(m => m.id === mod).title[lang], text: c.text, body: c.body });
   }
@@ -1411,6 +1472,7 @@ function route() {
   else if (h === '#/glosarium') renderGloss();
   else if (h === '#/tentang') renderAbout();
   else renderHome();
+  updateChildBanner();
 }
 window.addEventListener('hashchange', () => { route(); window.scrollTo(0, 0); });
 
@@ -1453,13 +1515,14 @@ function sosTimer(sp) {
     ${log}</section>`;
 }
 UI.hcat = UI.hcat || { panas: 'ehs', trauma: 'bld' }; // kategori terpilih per kartu
-const sosW = () => { const w = parse(S.base.weight); return S.base.weight !== '' && !m1State().allErr.weight && Number.isFinite(w) ? w : NaN; };
+const sosW = () => { const w = parse(S.base.weight); return S.base.weight !== '' && !m1State().allErr.weight && Number.isFinite(w) && w >= SOS_MIN_W ? w : NaN; };
+const sosSmall = () => { const w = parse(S.base.weight); return S.base.weight !== '' && !m1State().allErr.weight && w < SOS_MIN_W; };
 function sosDose(sp) {
   const T = TS(), w = sosW(), needW = sp.dose.some(d => d.calc);
   const rows = sp.dose.map(d => { const v = d.t ? d.t[lang] : Number.isFinite(w) ? d.calc(w)[lang] : T.needW; return d.t ? `<div class="dsrow"><span class="dsl">${esc(d.l[lang])}</span><span class="dst">${esc(v)}</span></div>` : kvRow(d.l[lang], v); }).join('');
   return `<section class="card sossec dose" style="margin-top:14px"><h2 class="sosk">${esc(T.doseHead.toUpperCase())}</h2>
     ${needW ? `<div id="fields">${field('weight', t().weight, 'kg', S.base.weight, { req: false, err: UI.touched.has('weight') ? m1State().allErr.weight : '', dec: true })}</div>` : ''}
-    <div id="dosebox">${rows}</div><div class="pqbox warn" style="margin-top:10px"><span>${esc(T.doseWarn)}</span></div></section>`;
+    <div id="doseSmall">${sosSmall() ? childNote(TC().sosW) : ''}</div><div id="dosebox">${rows}</div><div class="pqbox warn" style="margin-top:10px"><span>${esc(T.doseWarn)}</span></div></section>`;
 }
 function sosSev(sp) {
   const T = TS();
